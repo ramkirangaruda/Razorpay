@@ -140,9 +140,17 @@ backstop/
 
 ## Status
 
-Day 1 of a 12-day build (23 Aug – 4 Sep 2026). See `docs/build-log.md` for the running log.
+Day 1 of a 12-day build (23 Aug – 4 Sep 2026), moving ahead of schedule. See `docs/build-log.md`
+for the running log.
 
 Done so far: repo scaffold, disclosed world model with cited sources, DB schema, seeded synthetic
-batch generator (verified: `python3 -m sim.generate_batch --n 200 --seed 42`).
+batch generator (verified: `python3 -m sim.generate_batch --n 200 --seed 42`), and the full L2
+policy layer — `app/policy.py`, `app/stopping_rules.py`, `app/circuit_breaker.py` — at **100%
+branch coverage**, 149 tests (`python3 -m pytest tests/ -q`; `coverage run --branch --source=app.policy,app.stopping_rules,app.circuit_breaker -m pytest tests/`).
+The never-upgrade invariant (L2 can only reduce blast radius, never expand it) is enforced at
+runtime, not just tested: `evaluate()` raises `PolicyViolation` if any rule ever tries to increase
+an action's rank, and a dedicated test injects a deliberately broken rule to prove that guard
+actually fires rather than assuming it would.
 
-Next: `policy.py` and `stopping_rules.py` with full test coverage, then the classifier prompt.
+Next: `classifier.py` (L1) with structured JSON output, then `executor.py` and the idempotency
+plumbing against Razorpay test-mode.

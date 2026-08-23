@@ -47,3 +47,54 @@ immutably. Settled on: `Attempt` is the convenience view of "where is this attem
 `AuditLogEntry` is the actual source of truth and the only append-only table. Documented the
 reasoning directly in `app/models.py`'s module docstring so it doesn't get "fixed" back to
 overcomplicated later in the sprint.
+
+---
+
+## 2026-08-23 — continued: policy.py, stopping_rules.py, circuit_breaker.py (pulled forward from
+the 25–27 Aug slot; moved faster than planned on day 1's momentum)
+
+**The stale-lock filesystem issue from the local-folder bridge recurred and needed a firmer fix.**
+Every git operation there was leaving an un-removable `index.lock`/`HEAD.lock` behind (delete is
+restricted on that mount). Worked around it the same way as before — rename the stale lock out of
+the way with `mv` before each git command that touches the index — but this is now clearly a
+per-command tax on that path, not a one-off. Noting it here again because it'll recur every session
+that writes through the desktop bridge until the repo is added to this session's authorized sources
+and pushes can go straight from the cloud side instead.
+
+**`vetoed` needed a real definition, not just "the action changed."** First cut of
+`PolicyDecision.vetoed` was `action != proposal.proposed_action`. That made `RETRY_NOW` deferred to
+`RETRY_SCHEDULED` by `MIN_ATTEMPT_INTERVAL` count as a "veto," which doesn't match how the build
+spec talks about vetoes (a compliance-flavored refusal) versus downgrades (softened timing/severity,
+same kind of action). Introduced action *families* (retry / contact / terminal) in `app/policy.py`
+so `vetoed` is now "the family changed," and a same-family swap or timing push is `downgraded` only.
+Caught by a failing test (`test_soft_funds_retried_too_soon_gets_rescheduled_not_vetoed`), not by
+re-reading the spec — the test was right and the implementation's first assumption was wrong.
+
+**Chasing 100% branch coverage on `policy.py` surfaced dead code, not just missing tests.** Two
+branches wouldn't cover no matter what input was constructed for them. Rather than writing
+contrived tests to hit lines that can never actually execute given the real rule set, traced why
+they were unreachable and simplified the code instead: an `elif` guarding against a rule that
+"changes the action to something other than RETRY_SCHEDULED" turned out to be true for every rule
+in the pipeline by construction, so the condition was redundant; collapsed it to a plain `else` and
+documented the invariant it relies on directly in `stopping_rules.py`'s `RULE_PIPELINE` comment
+block. Coverage gaps here were a better signal than a linter would have been — they pointed at
+actual unnecessary complexity, not just untested lines.
+
+**`circuit_breaker.py`'s first version had a real bug, and it was pure luck it wasn't in `policy.py`
+instead.** The rolling-window/cooldown logic reset trip state unconditionally on every window roll
+(`state = fresh_window(...)`) despite the code comment right above it explicitly saying a trip
+should persist until cooldown clears — comment and code disagreed, and nothing caught it until
+`tests/test_circuit_breaker.py`'s `test_trip_persists_across_a_window_roll_before_cooldown_elapses`
+failed. Fixed it, then a second test (`test_stays_tripped_past_cooldown_if_still_unhealthy`) failed
+too, revealing the deeper problem: `RESET_COOLDOWN` and `ROLLING_WINDOW` were both 30 minutes, which
+made the "cooldown elapsed but window hasn't rolled yet" code path essentially unreachable — by the
+time cooldown expired, the window had already rolled over and cleared the trip unconditionally
+anyway. Rather than shrinking `RESET_COOLDOWN` to paper over it, removed the separate cooldown
+concept entirely: trip state is now recomputed live from whatever's in the *current* window on
+every call, and `MIN_SAMPLE_SIZE` alone (not a timer) is what prevents flapping right after a roll.
+Simpler, and every branch is now both reachable and tested at 100%. This is exactly the "measurement
+apparatus lies to you" pattern the plan warned about, except this time it caught a bug in the system
+under test, not in the harness measuring it — worth remembering that both directions are possible.
+
+**Net result:** `app/policy.py`, `app/stopping_rules.py`, `app/circuit_breaker.py` at 100% branch
+coverage (`coverage run --branch`, 149 tests, verified — not asserted from reading the code).

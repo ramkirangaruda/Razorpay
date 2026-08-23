@@ -89,8 +89,14 @@ convenience view of an attempt's current state; `AuditLogEntry` is never updated
 
 ## Status
 
-Written day 1, alongside the schema it describes. `classifier.py`, `policy.py`,
-`stopping_rules.py`, `circuit_breaker.py`, `executor.py`, and `audit.py` are not yet implemented —
-next on the build plan (25–30 Aug). This document describes the target shape; if implementation
-forces a deviation, the deviation and its reason go in `docs/build-log.md`, and this file gets
-updated to match, not silently left stale.
+`app/policy.py`, `app/stopping_rules.py`, and `app/circuit_breaker.py` (L2, plus the issuer
+circuit breaker it depends on) are implemented and at 100% branch coverage — see
+`tests/test_policy.py` and `tests/test_circuit_breaker.py`. The family-based `vetoed` vs
+`downgraded` distinction described above was refined during implementation (a same-family action
+swap, e.g. `RETRY_NOW` deferred to `RETRY_SCHEDULED`, is a downgrade, not a veto); see
+`docs/build-log.md` for why.
+
+`classifier.py` (L1), `executor.py` (L3), and `audit.py` are not yet implemented — next on the
+build plan. This document describes their target shape; if implementation forces a deviation, the
+deviation and its reason go in `docs/build-log.md`, and this file gets updated to match, not
+silently left stale.
