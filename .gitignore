@@ -12,6 +12,9 @@ sim/data/*.json
 # assertions. Generated batches and arm results stay ignored - those rebuild
 # from a seed.
 !sim/data/l1_classifications_seed42.json
+# Same reasoning: a real captured Razorpay test-mode failure (sim/demo_live_trace.py)
+# is an INPUT tied to a specific real payment, not something a seed regenerates.
+!sim/data/live_failure_capture.json
 node_modules/
 dist/
 .DS_Store

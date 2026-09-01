@@ -1,0 +1,35 @@
+{
+  "provenance": {
+    "captured_at_utc": "2026-09-01T13:22:39+00:00",
+    "razorpay_order_id": "order_TWmdhEisIcRhAM",
+    "razorpay_payment_id": "pay_TWmt4DqxW5pZUm",
+    "test_card_used": "4100 2800 0002 0007 (Visa) - Razorpay's documented test card for gateway_technical_error",
+    "how_captured": "A real order was created via app.executor.RazorpayExecutor's live path, checked out through Razorpay's actual test-mode checkout.js with the card above, and the mock bank's Failure button was clicked. This is a genuine Razorpay API response from a real test-mode network round-trip, not a fabricated payload - see sim/demo_live_trace.py.",
+    "note_on_the_error_shape": "The documented test card is supposed to produce error_reason=gateway_technical_error, but the mock bank's Failure button returned a generic error_reason=payment_failed / error_source=gateway instead - the same generic shape sim/generate_batch.py's GENERIC_BANK_DECLINE template models (source=bank there vs source=gateway here), and exactly the kind of unmapped, ambiguous decline REASON_TO_CLASS in app/classifier.py has no entry for. Documented behaviour not matching live behaviour is now a pattern in this repo - see app/executor.py's module docstring for the Orders/receipt finding from the same day.",
+    "pii_excluded": "The real payment object also carried contact/email fields entered during checkout; both are omitted here deliberately - they play no role in classification and there is no reason to keep contact information in a committed fixture."
+  },
+  "case": {
+    "case_id": "live_case_pay_TWmt4DqxW5pZUm",
+    "kind": "ONE_TIME",
+    "amount_paise": 50000,
+    "currency": "INR",
+    "instrument_type": "card",
+    "issuer": "DCBL",
+    "error": {
+      "code": "BAD_REQUEST_ERROR",
+      "description": "Payment failed",
+      "source": "gateway",
+      "step": "payment_authorization",
+      "reason": "payment_failed"
+    },
+    "mastercard_advice_code": null,
+    "customer": {
+      "tenure_days": 220,
+      "prior_failures_90d": 0,
+      "prior_contacts_30d": 0,
+      "days_since_last_contact": null,
+      "successful_payments": 9,
+      "archetype": "ordinary - SYNTHETIC, not part of the real capture. Razorpay's payment object carries no customer-history fields; only the error/instrument/amount fields above came from the real API response."
+    }
+  }
+}
