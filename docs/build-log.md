@@ -287,3 +287,60 @@ surface at delta-E 1.9 for protanopia, magenta collides with orange in light and
 than hunting for a hue, C and D now share one and are separated by fill, hollow for the table and
 solid for the model. That is the better encoding anyway: they are the same policy with one component
 swapped, and now they read as a pair.
+
+---
+
+## 2026-09-01 (evening) — L3 executor, built and live-verified
+
+Section 5.2 was next in priority order. `app/executor.py` now exists: an `Executor`
+protocol, `FakeExecutor` for tests, `RazorpayExecutor` for the real path — same
+module-boundary discipline as `classifier.py` being the only file that touches an LLM.
+Only `RETRY_NOW`/`RETRY_SCHEDULED` (→ Orders) and `REQUEST_INSTRUMENT_UPDATE`
+(→ Payment Links) ever reach L3; `EXECUTABLE_ACTIONS` makes that a checked boundary
+rather than a convention.
+
+**Two things the documentation got wrong, caught by testing against the real API
+instead of trusting a summary of it.** A third-party summary of Razorpay's docs claimed
+`order.create`'s `receipt` field is treated as an idempotency key. It is not: two live
+calls with an identical `receipt` on 1 September 2026 created two distinct orders.
+`payment_link.create`'s `reference_id` behaves the opposite way — a reused value is
+rejected outright, confirmed the same way. So retries have no Razorpay-side dedupe at
+all; the caller's own `existing` check (whatever `ExecutionResult` already exists for
+`(invoice_id, attempt_no)`) is the *only* guard for `RETRY_NOW`/`RETRY_SCHEDULED`, and a
+real second layer for `REQUEST_INSTRUMENT_UPDATE`. Both behaviours are pinned by live
+tests in `tests/test_executor.py` (skipped without `RAZORPAY_KEY_ID`/`RAZORPAY_KEY_SECRET`;
+see `tests/conftest.py`'s `.env` loader).
+
+**A real bug, also caught by the live run.** The first `idempotency_key()` truncated the
+whole formatted string to Razorpay's 40-char cap. A 36-char UUID `invoice_id` already
+exceeds that budget with any prefix attached, so the `attempt_no` suffix was silently
+dropped and every attempt on an invoice collided onto the same key. Fixed by reserving
+the suffix's space first and truncating the invoice id, not the finished string.
+
+**The one real end-to-end trace.** A real order was created via `RazorpayExecutor`,
+checked out through Razorpay's actual test-mode `checkout.js` with a documented failing
+test card, and declined for real by clicking Failure on the mock bank screen — twice,
+because the first attempt was checked out with the *wrong* card and succeeded instead of
+failing, and browser automation (both the sandboxed pane and, after asking the user to
+grant it access, a real Chrome tab via the Claude-in-Chrome extension) could not
+reliably type into the nested card-entry iframe — clicks landed, keystrokes did not, in
+a way that looked like the iframe is deliberately isolated against scripted input. The
+user completed the checkout by hand both times. The resulting decline
+(`sim/data/live_failure_capture.json`) is genuinely real, not fabricated, and is one more
+case of documentation not matching reality: the test card is documented to produce
+`error_reason=gateway_technical_error`, but the mock bank's Failure button returned a
+generic `payment_failed`/`gateway` shape instead — coincidentally exactly the ambiguous,
+unmapped-reason shape `sim/generate_batch.py`'s `GENERIC_BANK_DECLINE` template models.
+
+`sim/demo_live_trace.py` runs that real decline through the actual L1 → L2b → L2a chain
+and then executes L2a's permitted action for real too: L1 classifies it LOW-confidence
+(unmapped reason, falls back to `SOFT_FUNDS`/`RETRY_SCHEDULED`), L2b prices
+`REQUEST_INSTRUMENT_UPDATE` above the proposal once lapse-avoided and churn hazard are
+in, L2a permits it with no rule firing, and L3 creates a genuine Razorpay payment link
+(`plink_TWmzYg3YvKaVgY`). Both ends of the trace are real API responses — not a real
+failure glued onto a simulated recovery.
+
+**Where it stands:** 262 tests (244 pre-existing + 18 new: 15 always-on, 3 live-only).
+`sim/run_arms.py` untouched and reconfirmed unaffected — the simulator resolves outcomes
+probabilistically and never calls L3, so none of the four-arm comparison depends on any
+of this. Section 5.3 (`app/audit.py`) is next.

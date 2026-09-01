@@ -67,7 +67,7 @@ failure payload + customer history
       │  permits
       ▼
 ┌─────────────┐  idempotent call, key = (payment_id, attempt_no)
-│     L3      │  app/executor.py — NOT YET BUILT, see Status
+│     L3      │  app/executor.py — live-verified against Razorpay test mode, see Status
 └─────────────┘
       │
       ▼
@@ -325,11 +325,12 @@ A system that only reports where it was too aggressive is telling half the story
 
 ```bash
 pip install -r requirements.txt
-python -m pytest                          # 244 tests
+python -m pytest                          # 262 tests (3 skipped without a Razorpay test key)
 python -m sim.generate_batch --n 120 --seed 42
 python -m sim.run_arms --n 120 --seed 42
 python -m sim.run_arms --adversarial
 python -m sim.run_arms --belief-error 0.5 --belief-error 2.0
+python -m sim.demo_live_trace             # the one real end-to-end L3 trace
 python -m sim.render_trace                # docs/results/trace.html
 python -m sim.render_frontier             # docs/results/frontier.html
 python sim/world_model_constants.py --citations   # provenance table
@@ -347,14 +348,21 @@ moves to `halted` and the customer is emailed a card-update link.
 ## Status
 
 **Built and tested:** L2a (policy gate, stopping rules), L2b (EV scorer), L1's interface and both
-implementations, the eval batch with ground truth, the three-arm simulator, and both judge-facing
-artifacts, and the measured LLM arm. 244 tests (149 pre-existing on L2a, untouched).
+implementations, the eval batch with ground truth, the three-arm simulator, both judge-facing
+artifacts, the measured LLM arm, and L3 (`app/executor.py`) — live-verified against a real Razorpay
+test-mode account. 262 tests (149 pre-existing on L2a, untouched).
+
+**L3, and the one real trace.** `RazorpayExecutor` calls Razorpay's Orders and Payment Links APIs for
+real. Idempotency was checked against the live API rather than assumed from documentation, which
+turned out to matter: `order.create`'s `receipt` field is *not* an idempotency key despite third-party
+claims that it is (two live calls with an identical receipt created two distinct orders), while
+`payment_link.create`'s `reference_id` genuinely does reject a duplicate. `sim/demo_live_trace.py` runs
+one real declined payment — captured by actually completing a Razorpay test-mode checkout with a
+documented failing card — through classification, pricing, and gating, then executes the permitted
+action for real too: a genuine payment link, not a simulated one.
 
 **Not built, and not claimed:**
 
-- **L3.** No Razorpay API call has been made. The executor is specified (idempotency key
-  `(payment_id, attempt_no)`, unique-constrained in `app/models.py`) but not written, and at least
-  one end-to-end demo trace should use a real test-mode failure before submission.
 - **`app/audit.py`.** The schema exists; the append-only writer does not. The simulator carries
   per-decision traces in memory instead.
 
@@ -373,11 +381,13 @@ app/
   stopping_rules.py   ten rules, each declaring REGULATORY or BACKSTOP
   policy.py           L2a: the gate, with the valve asserted in code
   models.py           schema: invoices, attempts, append-only audit log
+  executor.py         L3: idempotent Razorpay calls, live-verified
 sim/
   world_model.py            the WORLD's truth — not the agent's beliefs
   world_model_constants.py  the AGENT's beliefs, with three-tier provenance
   generate_batch.py         40% clean / 35% ambiguous / 25% context-dependent
   run_arms.py               do-nothing / naive / rules-only / backstop
+  demo_live_trace.py        one real Razorpay decline, run through the full pipeline
   render_trace.py           docs/results/trace.html
   render_frontier.py        docs/results/frontier.html
 tests/

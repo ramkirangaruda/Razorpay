@@ -159,10 +159,13 @@ conversion happens and why the trace renderer prints both zones.
 ## Status
 
 **Built:** `models.py`, `policy.py`, `stopping_rules.py`, `circuit_breaker.py` (L2a, pre-existing),
-`rule_basis.py`, `scorer.py` (L2b), `classifier.py` (L1 interface, lookup + LLM implementations).
-231 tests, of which the 149 on L2a are unmodified.
+`rule_basis.py`, `scorer.py` (L2b), `classifier.py` (L1 interface, lookup + LLM implementations),
+`executor.py` (L3: `Executor` protocol, `FakeExecutor`, `RazorpayExecutor`) — live-verified against a
+real Razorpay test-mode account, including one full real end-to-end trace
+(`sim/demo_live_trace.py`): a genuine declined payment, classified, priced, gated, and followed by a
+genuine payment link created in response. See `docs/HANDOFF.md` §5.2 and `docs/build-log.md`'s
+1 September evening entry for two places the live API's actual behaviour did not match its
+documentation. 262 tests, of which the 149 on L2a are unmodified.
 
-**Not built:** `executor.py` (L3) and `audit.py`. The executor's contract is fixed — idempotency key
-`(razorpay_payment_id, attempt_no)`, unique-constrained at the DB layer in `app/models.py` — but no
-Razorpay API call has been made yet. `audit.py`'s schema exists in `models.py`; the append-only
-writer does not, and the simulator carries per-decision traces in memory instead.
+**Not built:** `audit.py`. The schema exists in `models.py`; the append-only writer does not, and the
+simulator carries per-decision traces in memory instead.

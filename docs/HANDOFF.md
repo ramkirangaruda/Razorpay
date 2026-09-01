@@ -1,4 +1,4 @@
-# Backstop — handoff, 1 September 2026
+# Backstop — handoff, 1 September 2026 (evening update)
 
 You are picking up an in-flight buildathon project with a hard deadline. Read all of this before
 touching the repository.
@@ -6,8 +6,10 @@ touching the repository.
 **Repo:** `C:\Users\ramki\Desktop\here\Razorpay` — also `github.com/ramkirangaruda/Razorpay`
 **Deadline:** 4 September 2026 (the original brief says 5 Sep; work to 4)
 **Event:** Razorpay AI Builder Internship 2026 buildathon, Track 3 — AI Revenue Recovery
-**State:** `main` at `944b86b`, working tree clean
-**Tests:** 244 passing (`python -m pytest`)
+**State:** `main` at `dac6d79`, working tree clean
+**Tests:** 262 passing (`python -m pytest`) — 244 pre-existing + 18 for `app/executor.py`
+(15 always-on, 3 live-only against a real Razorpay test-mode account; see §5.2 below and
+`docs/build-log.md`'s 1 September evening entry)
 
 ---
 
@@ -188,17 +190,43 @@ the existing recording with a live run without keeping both; the README's figure
 A calibration plot (predicted bucket against realised recovery rate) is still unbuilt and is cheap —
 the data is all in `sim/data/l1_classifications_seed42.json` plus the batch's ground truth.
 
-### 5.2 L3 — at least one real Razorpay test-mode call
+### 5.2 ~~L3~~ — DONE
 
-`app/executor.py` does not exist. The contract is already fixed: idempotency key
-`(razorpay_payment_id, attempt_no)`, unique-constrained at the DB layer in `app/models.py`.
+`app/executor.py` exists: `Executor` protocol, `FakeExecutor`, `RazorpayExecutor`. Only
+`RETRY_NOW`/`RETRY_SCHEDULED` (→ Orders) and `REQUEST_INSTRUMENT_UPDATE` (→ Payment Links)
+ever reach L3 — `EXECUTABLE_ACTIONS` is a checked boundary, not a convention.
 
-**Do not build exhaustive live-API coverage.** Three or four real test-mode calls that prove
-idempotency and capture the real error object shape; everything else runs against a fake. Exhaustive
-sandbox coverage earns no points and is a well-known way to lose a day.
+**Idempotency was verified live, not assumed from documentation, because the documentation
+was wrong.** A summary of Razorpay's docs claimed `order.create`'s `receipt` is treated as
+an idempotency key. It is not — two live calls with an identical `receipt` created two
+distinct orders (confirmed 1 September 2026). `payment_link.create`'s `reference_id`
+*does* reject a duplicate. So for retries, the caller's `existing` argument (whatever
+`ExecutionResult` already exists for `(invoice_id, attempt_no)`) is the **only** guard —
+Razorpay provides none — and a real second layer only for `REQUEST_INSTRUMENT_UPDATE`.
+Both are pinned by live tests in `tests/test_executor.py`. **Do not "fix" this by adding a
+try/except around `order.create` for a duplicate-receipt case that does not fire** —
+see `app/executor.py`'s module docstring before touching this.
 
-At least one end-to-end demo trace must use a **real Razorpay test-mode failure**, not a fabricated
-payload. A project that barely touches their API reads as generic to this specific judge.
+**A real bug the live run caught:** the first `idempotency_key()` truncated the whole
+formatted string to Razorpay's 40-char cap. A 36-char UUID `invoice_id` alone already
+exceeds that budget, so `attempt_no` was silently dropped and every attempt on an invoice
+collided onto one key. Fixed — reserve the suffix's space, truncate the invoice id, not
+the finished string.
+
+**The one real end-to-end trace is done too.** `sim/data/live_failure_capture.json` is a
+genuine Razorpay test-mode decline (order created via `RazorpayExecutor`, checked out
+through real `checkout.js` with a documented failing card, Failure clicked on the mock
+bank screen — by the user by hand; **browser automation could not type into the nested
+card-entry iframe**, in both the sandboxed pane and a real Chrome tab via Claude-in-Chrome,
+clicks landed but keystrokes did not — worth knowing before trying again for §5.4).
+`sim/demo_live_trace.py` runs that real decline through L1 → L2b → L2a and then executes
+L2a's permitted action for real too (`REQUEST_INSTRUMENT_UPDATE` → a genuine payment
+link). Re-running it creates a **new** real order/link each time — it is a demo script,
+not idempotent across runs, unlike the executor it exercises.
+
+Live tests need `RAZORPAY_KEY_ID`/`RAZORPAY_KEY_SECRET` in `.env` (gitignored,
+`tests/conftest.py` loads it — no new dependency). Without them, `test_executor.py`'s live
+tests skip and `sim/demo_live_trace.py` prints what L1/L2b/L2a decided without executing.
 
 ### 5.3 `app/audit.py`
 
@@ -312,23 +340,27 @@ app/
   rule_basis.py        REGULATORY / BACKSTOP + citations
   scorer.py            L2b, the EV model
   classifier.py        L1: lookup + LLM implementations
-  executor.py          L3 — NOT BUILT
+  executor.py          L3: Executor protocol, FakeExecutor, RazorpayExecutor
   audit.py             NOT BUILT
 sim/
   world_model.py             the WORLD's truth — not the agent's beliefs
   world_model_constants.py   the AGENT's beliefs, three-tier provenance
   generate_batch.py          40% clean / 35% ambiguous / 25% context, with ground truth
   run_arms.py                do-nothing / naive / rules-only / backstop
+  demo_live_trace.py         the one real end-to-end trace (§5.2)
+  data/live_failure_capture.json  a genuine Razorpay decline, committed like the L1 recording
   render_trace.py            docs/results/trace.html
   render_frontier.py         docs/results/frontier.html
   gen_world_model_doc.py     docs/world-model.md
 tests/
+  conftest.py           loads .env (RAZORPAY_KEY_ID/SECRET, ANTHROPIC_API_KEY) for pytest
   test_policy.py             149 tests with test_circuit_breaker  [FROZEN]
   test_circuit_breaker.py                                          [FROZEN]
   test_compliance_rules.py   interaction tests for the added rules
   test_scorer.py             including findings we would rather were untrue
   test_reported_claims.py    asserts the README's numbers against a live run
   test_l1_measurement.py     pins what the model bought, including where it TIES
+  test_executor.py           L3 contract; 3 tests live-only, skipped without .env
 docs/
   architecture.md  world-model.md (generated)  build-log.md  results/
 ```
