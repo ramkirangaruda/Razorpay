@@ -20,7 +20,12 @@ failure payload + customer history
         │  proposes
         ▼
 ┌───────────────────────────┐
-│ L2  POLICY GATE (no LLM)  │  → may VETO or DOWNGRADE. Never upgrades. Pure deterministic code.
+│ L2b EV SCORER (no LLM)    │  → prices every candidate action. STOP scores zero.
+└───────────────────────────┘
+        │  may narrow, never widen
+        ▼
+┌───────────────────────────┐
+│ L2a POLICY GATE (no LLM)  │  → may VETO or DEFER. Never upgrades. Pure deterministic code.
 └───────────────────────────┘
         │  permits
         ▼
@@ -87,16 +92,77 @@ Append-only, one row per event (`CLASSIFIED`, `POLICY_PERMITTED`, `POLICY_VETOED
 convenience view of an attempt's current state; `AuditLogEntry` is never updated or deleted.
 `app/audit.py` is the only file permitted to write to it, and exposes no update/delete methods.
 
+## The L2 split
+
+The original design had one policy layer answering "is this action allowed?". It now has two:
+
+- **`L2b` (`app/scorer.py`) asks whether an action is WORTH taking.** Expected value, every term
+  traceable to a citation. Stop is not a rule here — it is what wins when nothing else scores above
+  zero.
+- **`L2a` (`app/policy.py`, `app/stopping_rules.py`, `app/circuit_breaker.py`) asks whether it is
+  ALLOWED.** This layer was already built and tested at 149 tests; the split wrapped it rather than
+  rewriting it.
+
+`app/rule_basis.py` classifies every rule as `REGULATORY` (Indian law or a card-network rule, not
+ours, nothing to sweep) or `BACKSTOP` (ours, bounding scorer error). That reclassification is not
+cosmetic: a `REGULATORY` veto is compliance working as designed, while a `BACKSTOP` veto is a
+finding that the arithmetic should have stopped us first — and the veto-rate metric separates them
+so "we were saved by a rule" cannot be reported as "the model was right".
+
+It is a lookup keyed on `RuleName` rather than a field on `RuleOutcome` precisely so that the
+existing rule logic and its branch coverage stay untouched.
+
+## Rules added since
+
+Three came from build spec §11, which asks for the Indian and card-network constraints to be
+encoded in L2a with citations:
+
+- `MC_NEVER_RETRY_ADVICE_CODE` — MAC 03/21. Deliberately separate from `HARD_DECLINE_NO_RETRY`
+  because it fires on the **network's** label rather than our classification, so it still catches
+  the case where L1 read a fraud decline as `SOFT_FUNDS`. A backstop that only works when our
+  classification was already right is not a backstop against it being wrong.
+- `NETWORK_REATTEMPT_CAP` — Visa 15/card/30d, Mastercard 10 auths/PAN/24h. Not redundant with
+  `MAX_LIFETIME_ATTEMPTS`, which counts attempts on one *invoice*; these count attempts on one
+  *card* across every invoice it backs.
+- `EMANDATE_PREDEBIT_NOTICE` — the RBI 24-hour notice, buffered to 26h. Scoped to the e-mandate
+  rail and to retry actions only. A consequence worth naming: this makes "retry within the hour"
+  illegal on the Indian recurring rail, so Mastercard advice code 24 is unfollowable there. Where
+  the network and the regulator disagree, the regulator wins.
+
+A fourth, `HARD_RISK_NO_CONTACT`, came from an interaction test rather than from the spec — see the
+build log entry for 1 September.
+
+All four are additions to `RULE_PIPELINE`. None modifies an existing rule.
+
+## Deferral is not a veto
+
+`quiet_hours` and `emandate_predebit_notice` block because of *when* it is, and both know the moment
+they stop binding, so they return a `forced_scheduled_for` rather than a refusal. The simulator
+honours it by advancing its clock instead of closing the invoice.
+
+Collapsing "not until 09:00" into a stop would abandon invoices that a few hours' wait recovers, and
+would turn the quiet-hours rule — which exists to protect a customer from a 3am message — into a
+rule that costs them their subscription.
+
+Because `RULE_PIPELINE` accumulates, a debit pushed to the RBI notice window can still be pushed
+further out by `min_attempt_interval`: the later rule sees the schedule the earlier one set, and the
+result is the later of the two constraints rather than whichever fired last.
+
+## A note on clocks
+
+The simulation clock is **UTC**. `PolicyContext.now_utc` is timezone-aware, and `quiet_hours`
+converts to IST itself via `PolicyContext.now_ist`. Feeding it an IST-valued datetime tagged as UTC
+would shift the protected window by five and a half hours and silently send messages at 3am — a bug
+that would look entirely correct in review, which is why `sim/run_arms._utc` is the single place the
+conversion happens and why the trace renderer prints both zones.
+
 ## Status
 
-`app/policy.py`, `app/stopping_rules.py`, and `app/circuit_breaker.py` (L2, plus the issuer
-circuit breaker it depends on) are implemented and at 100% branch coverage — see
-`tests/test_policy.py` and `tests/test_circuit_breaker.py`. The family-based `vetoed` vs
-`downgraded` distinction described above was refined during implementation (a same-family action
-swap, e.g. `RETRY_NOW` deferred to `RETRY_SCHEDULED`, is a downgrade, not a veto); see
-`docs/build-log.md` for why.
+**Built:** `models.py`, `policy.py`, `stopping_rules.py`, `circuit_breaker.py` (L2a, pre-existing),
+`rule_basis.py`, `scorer.py` (L2b), `classifier.py` (L1 interface, lookup + LLM implementations).
+231 tests, of which the 149 on L2a are unmodified.
 
-`classifier.py` (L1), `executor.py` (L3), and `audit.py` are not yet implemented — next on the
-build plan. This document describes their target shape; if implementation forces a deviation, the
-deviation and its reason go in `docs/build-log.md`, and this file gets updated to match, not
-silently left stale.
+**Not built:** `executor.py` (L3) and `audit.py`. The executor's contract is fixed — idempotency key
+`(razorpay_payment_id, attempt_no)`, unique-constrained at the DB layer in `app/models.py` — but no
+Razorpay API call has been made yet. `audit.py`'s schema exists in `models.py`; the append-only
+writer does not, and the simulator carries per-decision traces in memory instead.

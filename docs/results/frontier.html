@@ -1,0 +1,127 @@
+<!doctype html><html lang=en><head><meta charset=utf-8>
+<meta name=viewport content="width=device-width,initial-scale=1">
+<title>Backstop &mdash; the frontier</title><style>
+:root{--bg:#f7f7f5;--fg:#1a1a18;--mut:#6b6b66;--line:#dcdcd6;--card:#fcfcfb;
+--A_naive:#2a78d6;--B_rules_only:#eb6834;--C_backstop:#1baf7a;--zero:#8a8a83;
+--grid:#e6e6e0}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){
+--bg:#161614;--fg:#ecebe6;--mut:#9b9a92;--line:#33322d;--card:#1a1a19;
+--A_naive:#3987e5;--B_rules_only:#d95926;--C_backstop:#199e70;--zero:#7d7c75;
+--grid:#2a2a26}}
+:root[data-theme="dark"]{--bg:#161614;--fg:#ecebe6;--mut:#9b9a92;--line:#33322d;
+--card:#1a1a19;--A_naive:#3987e5;--B_rules_only:#d95926;--C_backstop:#199e70;
+--zero:#7d7c75;--grid:#2a2a26}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);
+font:14px/1.6 ui-sans-serif,-apple-system,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:820px;margin:0 auto;padding:40px 24px 72px}
+h1{font-size:23px;margin:0 0 6px;letter-spacing:-.01em}
+.sub{color:var(--mut);margin:0 0 26px;max-width:62ch}
+.fig{background:var(--card);border:1px solid var(--line);border-radius:7px;
+padding:18px 16px 10px;margin:0 0 12px}
+.cap{color:var(--mut);font-size:12.5px;margin:2px 0 26px;max-width:66ch}
+.grid{stroke:var(--grid);stroke-width:1}
+.axis{stroke:var(--line);stroke-width:1}
+.ax{fill:var(--mut);font-size:11px;font-family:ui-monospace,monospace}
+.axt{fill:var(--mut);font-size:12px}
+.lbl{fill:var(--fg);font-size:12.5px;font-weight:600}
+.tiny{fill:var(--mut);font-size:10.5px}
+.ring{fill:var(--card)}
+.curve{fill:none;stroke:var(--C_backstop);stroke-width:2;stroke-dasharray:5 4;opacity:.75}
+.curvept{fill:var(--C_backstop);opacity:.75}
+circle{cursor:default}
+table{border-collapse:collapse;width:100%;font-size:13px;margin:8px 0 0}
+caption{text-align:left;color:var(--mut);font-size:12.5px;padding:0 0 8px}
+th,td{text-align:right;padding:6px 10px;border-bottom:1px solid var(--line)}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--mut);font-weight:600;font-size:11px;text-transform:uppercase;
+letter-spacing:.05em}
+td.num{font-family:ui-monospace,monospace}
+.sw{display:inline-block;width:9px;height:9px;border-radius:2px;margin-right:7px}
+h2{font-size:15px;margin:34px 0 10px;text-transform:uppercase;letter-spacing:.08em;
+color:var(--mut);font-weight:600}
+p{max-width:66ch}
+code{background:var(--line);padding:1px 5px;border-radius:3px;
+font-family:ui-monospace,monospace;font-size:12.5px}
+</style></head><body><div class=wrap>
+<h1>Doing less, and what it costs</h1>
+<p class=sub>Net value added over never acting, against the harm it took to get there.
+Up is more money; left is fewer messages to customers. n=120, seed=42,
+identical batch for every arm.</p>
+
+<div class=fig><svg viewBox="0 0 720 400" width="100%" role="img" aria-label="Net value added against customer contacts per invoice. Naive sits highest and furthest right; Backstop lowest and furthest left.">
+<line x1="74" y1="342.0" x2="686" y2="342.0" class="grid"/>
+<text x="63" y="346.0" class="ax" text-anchor="end">1.45M</text>
+<line x1="74" y1="264.0" x2="686" y2="264.0" class="grid"/>
+<text x="63" y="268.0" class="ax" text-anchor="end">1.66M</text>
+<line x1="74" y1="186.0" x2="686" y2="186.0" class="grid"/>
+<text x="63" y="190.0" class="ax" text-anchor="end">1.86M</text>
+<line x1="74" y1="108.0" x2="686" y2="108.0" class="grid"/>
+<text x="63" y="112.0" class="ax" text-anchor="end">2.06M</text>
+<line x1="74" y1="30.0" x2="686" y2="30.0" class="grid"/>
+<text x="63" y="34.0" class="ax" text-anchor="end">2.27M</text>
+<text x="74.0" y="362.0" class="ax" text-anchor="middle">0.18</text>
+<text x="227.0" y="362.0" class="ax" text-anchor="middle">0.30</text>
+<text x="380.0" y="362.0" class="ax" text-anchor="middle">0.42</text>
+<text x="533.0" y="362.0" class="ax" text-anchor="middle">0.54</text>
+<text x="686.0" y="362.0" class="ax" text-anchor="middle">0.66</text>
+<line x1="74" y1="342" x2="686" y2="342" class="axis"/>
+<line x1="74" y1="30" x2="74" y2="342" class="axis"/>
+<path d="M158.7,249.9 L297.8,293.0 L383.4,171.9 L447.6,127.8 L522.5,160.1 L597.4,148.0 L597.4,148.0 L597.4,148.0" class="curve"/>
+<circle cx="597.4" cy="148.0" r="3.5" class="curvept"><title>agent believes contact fatigue x0.0: 0.59 contacts/invoice, 1,958,705 INR added</title></circle>
+<circle cx="597.4" cy="148.0" r="3.5" class="curvept"><title>agent believes contact fatigue x0.25: 0.59 contacts/invoice, 1,958,705 INR added</title></circle>
+<circle cx="597.4" cy="148.0" r="3.5" class="curvept"><title>agent believes contact fatigue x0.5: 0.59 contacts/invoice, 1,958,705 INR added</title></circle>
+<circle cx="522.5" cy="160.1" r="3.5" class="curvept"><title>agent believes contact fatigue x1.0: 0.53 contacts/invoice, 1,926,991 INR added</title></circle>
+<circle cx="447.6" cy="127.8" r="3.5" class="curvept"><title>agent believes contact fatigue x2.0: 0.47 contacts/invoice, 2,011,243 INR added</title></circle>
+<circle cx="383.4" cy="171.9" r="3.5" class="curvept"><title>agent believes contact fatigue x3.0: 0.42 contacts/invoice, 1,896,298 INR added</title></circle>
+<circle cx="297.8" cy="293.0" r="3.5" class="curvept"><title>agent believes contact fatigue x5.0: 0.36 contacts/invoice, 1,580,531 INR added</title></circle>
+<circle cx="158.7" cy="249.9" r="3.5" class="curvept"><title>agent believes contact fatigue x8.0: 0.25 contacts/invoice, 1,692,759 INR added</title></circle>
+<text x="158.7" y="270.9" class="tiny" text-anchor="middle">agent believes fatigue &times;8</text>
+<text x="158.7" y="283.9" class="tiny" text-anchor="middle">&larr; stronger belief, fewer contacts</text>
+<circle cx="629.5" cy="70.1" r="9.5" class="ring"/>
+<circle cx="629.5" cy="70.1" r="7" fill="var(--A_naive)"><title>Naive (Razorpay default): 80 recovered, 280 attempts, 74 contacts, 2,161,735 INR added</title></circle>
+<text x="613.5" y="75.1" class="lbl" text-anchor="end">Naive (Razorpay default)</text>
+<circle cx="533.2" cy="132.1" r="9.5" class="ring"/>
+<circle cx="533.2" cy="132.1" r="7" fill="var(--B_rules_only)"><title>Rules only: 78 recovered, 157 attempts, 65 contacts, 2,000,191 INR added</title></circle>
+<text x="533.2" y="116.1" class="lbl" text-anchor="middle">Rules only</text>
+<circle cx="522.5" cy="160.1" r="9.5" class="ring"/>
+<circle cx="522.5" cy="160.1" r="7" fill="var(--C_backstop)"><title>Backstop: 73 recovered, 145 attempts, 64 contacts, 1,926,991 INR added</title></circle>
+<text x="522.5" y="184.1" class="lbl" text-anchor="middle">Backstop</text>
+<text x="380" y="386" class="axt" text-anchor="middle">customer contacts per invoice &rarr; more harm</text>
+<text x="17" y="186" class="axt" text-anchor="middle" transform="rotate(-90 17 186)">net value added (INR)</text>
+</svg></div>
+<p class=cap>The dashed line is Backstop&rsquo;s belief sweep: one agent, told to believe
+contact fatigue is anywhere from zero to eight times our estimate, holding the world
+fixed. Believing fatigue is real moves it left, to fewer contacts; the unlabelled
+right-hand end of the curve is the agent ignoring fatigue entirely, which lands it
+back beside rules-only. Hover any point for its factor. Note the y-axis does
+not start at zero &mdash; the do-nothing reference sits at 0 and every arm is far above
+it, so the axis is zoomed to the range where the arms actually differ.</p>
+
+<table><caption>The same numbers, for readers who would rather have them than a picture.</caption><tr><th>arm</th><th>value added</th><th>contacts/invoice</th><th>recovered</th><th>attempts</th><th>value added, adversarial world</th></tr>
+<tr><td><span class='sw' style='background:var(--A_naive)'></span>Naive (Razorpay default)</td><td class='num'>2,161,735</td><td class='num'>0.62</td><td class='num'>80</td><td class='num'>280</td><td class='num'>2,685,148</td></tr>
+<tr><td><span class='sw' style='background:var(--B_rules_only)'></span>Rules only</td><td class='num'>2,000,191</td><td class='num'>0.54</td><td class='num'>78</td><td class='num'>157</td><td class='num'>2,355,741</td></tr>
+<tr><td><span class='sw' style='background:var(--C_backstop)'></span>Backstop</td><td class='num'>1,926,991</td><td class='num'>0.53</td><td class='num'>73</td><td class='num'>145</td><td class='num'>2,132,352</td></tr>
+</table>
+
+<h2>What this says</h2>
+<p>Backstop captures <b>89%</b> of the naive baseline&rsquo;s value using
+<b>52%</b> of the authorisation attempts and <b>86%</b> of the
+customer contacts. It does not beat Razorpay&rsquo;s default on raw value, and this
+page is not arranged to suggest it does &mdash; the naive arm sits highest on the
+y-axis and is drawn that way.</p>
+<p>The claim is the shape of the curve, not a single win. Whether trading
+11% of recovered value for 14% fewer customer contacts is
+a good deal depends on what a dunning contact actually costs a customer relationship
+&mdash; and that is the one number in this model with no published source. The sweep
+exists so a reader can pick their own answer and read off the consequence, rather than
+taking ours.</p>
+<p>The right-hand column is the adversarial world: contact fatigue and issuer
+penalties both set to zero, so blind retrying costs nothing beyond the gateway fee.
+Naive gains there and Backstop loses ground, which is the correct result &mdash; in a
+world where restraint buys nothing, restraint is not worth buying. Reporting it is
+worth more than the number is.</p>
+<p style="color:var(--mut);font-size:12.5px;margin-top:32px;border-top:1px solid var(--line);padding-top:14px">
+Generated by <code>sim/render_frontier.py</code>. Every arm runs the same seeded batch
+through the same policy gate; only the decision layer differs.</p>
+</div></body></html>

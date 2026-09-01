@@ -1,0 +1,238 @@
+<!doctype html><html lang=en><head><meta charset=utf-8><meta name=viewport content="width=device-width,initial-scale=1"><title>Backstop &mdash; decision traces</title><style>
+:root{--bg:#f7f7f5;--fg:#1a1a18;--mut:#6b6b66;--line:#dcdcd6;--card:#fff;
+--pos:#1f7a4d;--neg:#a3341f;--reg:#7a4a1f;--back:#3a4a7a;--accent:#2b2b28}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);
+font:14px/1.55 ui-sans-serif,-apple-system,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:960px;margin:0 auto;padding:40px 24px 80px}
+h1{font-size:24px;margin:0 0 4px;letter-spacing:-.01em}
+h2{font-size:15px;margin:36px 0 12px;text-transform:uppercase;
+letter-spacing:.08em;color:var(--mut);font-weight:600}
+.sub{color:var(--mut);margin:0 0 28px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:6px;
+padding:18px 20px;margin:0 0 14px}
+.kv{display:grid;grid-template-columns:190px 1fr;gap:4px 16px;font-size:13px}
+.kv dt{color:var(--mut)}
+.kv dd{margin:0;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12.5px}
+.step{border-left:3px solid var(--line);padding:0 0 0 18px;margin:0 0 22px;position:relative}
+.step.vetoed{border-left-color:var(--neg)}
+.step.acted{border-left-color:var(--pos)}
+.step .t{font-size:12px;color:var(--mut);font-family:ui-monospace,monospace}
+.tag{display:inline-block;padding:1px 7px;border-radius:3px;font-size:11px;
+font-weight:600;letter-spacing:.04em;vertical-align:1px}
+.tag.reg{background:#f4e8da;color:var(--reg)}
+.tag.back{background:#e3e8f5;color:var(--back)}
+.tag.ok{background:#dff0e6;color:var(--pos)}
+.tag.no{background:#f7e0da;color:var(--neg)}
+table{border-collapse:collapse;width:100%;font-size:12.5px;margin:8px 0 0}
+th,td{text-align:right;padding:5px 9px;border-bottom:1px solid var(--line)}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--mut);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.05em}
+td.num{font-family:ui-monospace,monospace}
+tr.win td{background:#f2f8f4;font-weight:600}
+.pos{color:var(--pos)}.neg{color:var(--neg)}
+.ev{font-family:ui-monospace,monospace;font-size:12.5px}
+.note{color:var(--mut);font-size:12.5px;margin:6px 0 0;font-style:italic}
+.rule{background:#fdf6f3;border:1px solid #f0dcd4;border-radius:5px;
+padding:10px 13px;margin:8px 0 0;font-size:12.5px}
+.rule code{font-size:12px}
+.cite{color:var(--mut);font-size:11.5px;margin-top:3px}
+.out{border:1px solid var(--line);border-left:3px solid var(--accent);
+background:var(--card);padding:14px 18px;border-radius:0 6px 6px 0}
+.gt{background:#f0f0ec;border:1px dashed var(--line);border-radius:5px;
+padding:12px 15px;font-size:12.5px;margin-top:10px}
+.gt b{font-weight:600}
+code{background:#eeeeea;padding:1px 4px;border-radius:3px;
+font-family:ui-monospace,monospace}
+.foot{color:var(--mut);font-size:12px;margin-top:40px;border-top:1px solid var(--line);
+padding-top:14px}
+@media(prefers-color-scheme:dark){
+:root{--bg:#161614;--fg:#ecebe6;--mut:#9b9a92;--line:#33322d;--card:#1e1e1b;
+--pos:#5fbd88;--neg:#e08469;--reg:#d6a476;--back:#8fa4dd;--accent:#c9c8c0}
+.tag.reg{background:#3a2c1c;color:#e0b27f}.tag.back{background:#242c42;color:#9fb3e8}
+.tag.ok{background:#1d3327;color:#7fce9d}.tag.no{background:#3a231c;color:#eb9b80}
+tr.win td{background:#1d2721}.rule{background:#2a1e1a;border-color:#43302a}
+.gt{background:#222220}code{background:#2a2a26}}
+</style></head><body><div class=wrap><h1>case_0071 <span style="color:var(--mut);font-weight:400">&middot; CLEAN</span></h1>
+<p class="sub">One invoice, end to end: payload &rarr; classification &rarr; expected value with every term shown &rarr; policy verdict &rarr; outcome.</p>
+<div class="card"><h2 style="margin-top:0">Failure payload</h2>
+<dl class="kv">
+<dt>error.code</dt><dd>BAD_REQUEST_ERROR</dd>
+<dt>error.description</dt><dd>Customer cancelled the 3D Secure authentication</dd>
+<dt>error.source</dt><dd>customer</dd>
+<dt>error.step</dt><dd>payment_authentication</dd>
+<dt>error.reason</dt><dd>payment_cancelled_by_customer</dd>
+<dt>amount</dt><dd>Rs 13,169.96</dd>
+<dt>kind</dt><dd>ONE_TIME</dd>
+<dt>issuer / instrument</dt><dd>ICICI / card</dd>
+<dt>mastercard advice code</dt><dd>absent — itself a signal</dd>
+<dt>customer</dt><dd>loyal_first_failure, tenure 405d, 21 successful payments, 0 prior failures/90d, 0 contacts/30d</dd>
+</dl></div>
+<div class="step vetoed">
+<div class="t">step 1 &middot; 2026-08-01 16:26 UTC &middot; 21:56 IST</div>
+<h2>L1 &mdash; classification</h2>
+<div class="ev">SOFT_AUTH &middot; confidence HIGH &middot; recovery bucket <b>MEDIUM</b> (ordinal, never a float)</div>
+<p class="note">reason=&#x27;payment_cancelled_by_customer&#x27; maps to SOFT_AUTH in the decision table</p>
+<h2>L2b &mdash; expected value</h2>
+<table><tr><th>action</th><th>P(rec)</th><th>recovery</th><th>+ lapse avoided</th><th>cost</th><th>issuer</th><th>churn</th><th>EV</th></tr>
+<tr class="win"><td>REQUEST_INSTRUMENT_UPDATE</td><td class="num">0.350</td><td class="num">4,609.49</td><td class="num">15,211.30</td><td class="num">-0.50</td><td class="num">-0.00</td><td class="num">-1,185.30</td><td class="num"><span class="pos">+18,634.99</span></td></tr>
+<tr><td>NUDGE</td><td class="num">0.175</td><td class="num">2,304.74</td><td class="num">7,605.65</td><td class="num">-0.50</td><td class="num">-0.00</td><td class="num">-1,185.30</td><td class="num"><span class="pos">+8,724.60</span></td></tr>
+<tr><td>STOP_PERMANENT</td><td class="num">0.000</td><td class="num">0.00</td><td class="num">0.00</td><td class="num">-0.00</td><td class="num">-0.00</td><td class="num">-0.00</td><td class="num"><span class="">+0.00</span></td></tr>
+</table>
+<h2>L2a &mdash; policy gate</h2>
+<div class="rule"><span class="tag reg">REGULATORY</span> <code>QUIET_HOURS</code> &mdash; 21:56 IST is within quiet hours; deferred to 2026-08-02T09:00:00+05:30.<div class="cite">TRAI TCCCPR 2018 as amended 12 Feb 2025 — promotional commercial communication restricted to 09:00–21:00. The 2025 amendment moved &#x27;service explicit&#x27; templates into the promotional category, so a dunning contact is treated as promotional unless it is a bare RBI-mandated debit notice.</div></div>
+<p class="note">Downgraded to <code>REQUEST_INSTRUMENT_UPDATE</code>, scheduled 2026-08-02 03:30 UTC (09:00 IST).</p>
+</div>
+<div class="step acted">
+<div class="t">step 2 &middot; 2026-08-02 03:30 UTC &middot; 09:00 IST</div>
+<h2>L1 &mdash; classification</h2>
+<div class="ev">SOFT_AUTH &middot; confidence HIGH &middot; recovery bucket <b>MEDIUM</b> (ordinal, never a float)</div>
+<p class="note">reason=&#x27;payment_cancelled_by_customer&#x27; maps to SOFT_AUTH in the decision table</p>
+<h2>L2b &mdash; expected value</h2>
+<table><tr><th>action</th><th>P(rec)</th><th>recovery</th><th>+ lapse avoided</th><th>cost</th><th>issuer</th><th>churn</th><th>EV</th></tr>
+<tr class="win"><td>REQUEST_INSTRUMENT_UPDATE</td><td class="num">0.350</td><td class="num">4,609.49</td><td class="num">15,211.30</td><td class="num">-0.50</td><td class="num">-0.00</td><td class="num">-1,185.30</td><td class="num"><span class="pos">+18,634.99</span></td></tr>
+<tr><td>NUDGE</td><td class="num">0.175</td><td class="num">2,304.74</td><td class="num">7,605.65</td><td class="num">-0.50</td><td class="num">-0.00</td><td class="num">-1,185.30</td><td class="num"><span class="pos">+8,724.60</span></td></tr>
+<tr><td>STOP_PERMANENT</td><td class="num">0.000</td><td class="num">0.00</td><td class="num">0.00</td><td class="num">-0.00</td><td class="num">-0.00</td><td class="num">-0.00</td><td class="num"><span class="">+0.00</span></td></tr>
+</table>
+<h2>L2a &mdash; policy gate</h2>
+<div class="ev"><span class="tag ok">PERMITTED</span> <code>REQUEST_INSTRUMENT_UPDATE</code> &mdash; no rule blocks it</div>
+<h2>L3 &mdash; execution</h2><div class="ev"><span class="tag ok">SUCCEEDED</span> REQUEST_INSTRUMENT_UPDATE</div>
+</div>
+<div class="out"><b>Outcome:</b> recovered via customer action &middot; 0 attempt(s), 1 contact(s)</div>
+<div class="gt"><b>Ground truth</b> (the agent never saw this) &mdash; true class <code>SOFT_AUTH</code>; retries needed: never recoverable by retrying; payment link would have worked; a perfect agent would open with <code>REQUEST_INSTRUMENT_UPDATE</code>.</div>
+<hr style="border:0;border-top:1px solid var(--line);margin:48px 0">
+<h1>case_0034 <span style="color:var(--mut);font-weight:400">&middot; AMBIGUOUS</span></h1>
+<p class="sub">One invoice, end to end: payload &rarr; classification &rarr; expected value with every term shown &rarr; policy verdict &rarr; outcome.</p>
+<div class="card"><h2 style="margin-top:0">Failure payload</h2>
+<dl class="kv">
+<dt>error.code</dt><dd>BAD_REQUEST_ERROR</dd>
+<dt>error.description</dt><dd>Payment failed</dd>
+<dt>error.source</dt><dd>bank</dd>
+<dt>error.step</dt><dd>payment_authorization</dd>
+<dt>error.reason</dt><dd>null</dd>
+<dt>amount</dt><dd>Rs 3,915.43</dd>
+<dt>kind</dt><dd>ONE_TIME</dd>
+<dt>issuer / instrument</dt><dd>AXIS / card</dd>
+<dt>mastercard advice code</dt><dd>absent — itself a signal</dd>
+<dt>customer</dt><dd>ordinary, tenure 133d, 6 successful payments, 2 prior failures/90d, 1 contacts/30d</dd>
+<dt>ambiguity</dt><dd>missing_reason</dd>
+</dl></div>
+<div class="step acted">
+<div class="t">step 1 &middot; 2026-08-01 09:47 UTC &middot; 15:17 IST</div>
+<h2>L1 &mdash; classification</h2>
+<div class="ev">SOFT_FUNDS &middot; confidence LOW &middot; recovery bucket <b>HIGH</b> (ordinal, never a float)</div>
+<p class="note">reason=None is not in the decision table; defaulted to SOFT_FUNDS</p>
+<h2>L2b &mdash; expected value</h2>
+<table><tr><th>action</th><th>P(rec)</th><th>recovery</th><th>+ lapse avoided</th><th>cost</th><th>issuer</th><th>churn</th><th>EV</th></tr>
+<tr class="win"><td>RETRY_SCHEDULED</td><td class="num">0.550</td><td class="num">2,153.49</td><td class="num">7,106.51</td><td class="num">-0.50</td><td class="num">-3.96</td><td class="num">-0.00</td><td class="num"><span class="pos">+9,255.53</span></td></tr>
+<tr><td>REQUEST_INSTRUMENT_UPDATE</td><td class="num">0.132</td><td class="num">516.84</td><td class="num">1,705.56</td><td class="num">-0.50</td><td class="num">-0.00</td><td class="num">-469.28</td><td class="num"><span class="pos">+1,752.62</span></td></tr>
+<tr><td>NUDGE</td><td class="num">0.088</td><td class="num">344.56</td><td class="num">1,137.04</td><td class="num">-0.50</td><td class="num">-0.00</td><td class="num">-469.28</td><td class="num"><span class="pos">+1,011.82</span></td></tr>
+<tr><td>STOP_PERMANENT</td><td class="num">0.000</td><td class="num">0.00</td><td class="num">0.00</td><td class="num">-0.00</td><td class="num">-0.00</td><td class="num">-0.00</td><td class="num"><span class="">+0.00</span></td></tr>
+</table>
+<p class="note">payday window not reachable before the invoice ages out</p>
+<h2>L2a &mdash; policy gate</h2>
+<div class="ev"><span class="tag ok">PERMITTED</span> <code>RETRY_SCHEDULED</code> &mdash; no rule blocks it</div>
+<h2>L3 &mdash; execution</h2><div class="ev"><span class="tag no">FAILED</span> RETRY_SCHEDULED</div>
+</div>
+<div class="step acted">
+<div class="t">step 2 &middot; 2026-08-02 09:47 UTC &middot; 15:17 IST</div>
+<h2>L1 &mdash; classification</h2>
+<div class="ev">SOFT_FUNDS &middot; confidence LOW &middot; recovery bucket <b>HIGH</b> (ordinal, never a float)</div>
+<p class="note">reason=None is not in the decision table; defaulted to SOFT_FUNDS</p>
+<h2>L2b &mdash; expected value</h2>
+<table><tr><th>action</th><th>P(rec)</th><th>recovery</th><th>+ lapse avoided</th><th>cost</th><th>issuer</th><th>churn</th><th>EV</th></tr>
+<tr class="win"><td>RETRY_SCHEDULED</td><td class="num">0.220</td><td class="num">861.39</td><td class="num">2,842.60</td><td class="num">-0.50</td><td class="num">-6.86</td><td class="num">-0.00</td><td class="num"><span class="pos">+3,696.63</span></td></tr>
+<tr><td>REQUEST_INSTRUMENT_UPDATE</td><td class="num">0.132</td><td class="num">516.84</td><td class="num">1,705.56</td><td class="num">-0.50</td><td class="num">-0.00</td><td class="num">-469.28</td><td class="num"><span class="pos">+1,752.62</span></td></tr>
+<tr><td>NUDGE</td><td class="num">0.088</td><td class="num">344.56</td><td class="num">1,137.04</td><td class="num">-0.50</td><td class="num">-0.00</td><td class="num">-469.28</td><td class="num"><span class="pos">+1,011.82</span></td></tr>
+<tr><td>STOP_PERMANENT</td><td class="num">0.000</td><td class="num">0.00</td><td class="num">0.00</td><td class="num">-0.00</td><td class="num">-0.00</td><td class="num">-0.00</td><td class="num"><span class="">+0.00</span></td></tr>
+</table>
+<p class="note">payday window not reachable before the invoice ages out</p>
+<h2>L2a &mdash; policy gate</h2>
+<div class="ev"><span class="tag ok">PERMITTED</span> <code>RETRY_SCHEDULED</code> &mdash; no rule blocks it</div>
+<h2>L3 &mdash; execution</h2><div class="ev"><span class="tag no">FAILED</span> RETRY_SCHEDULED</div>
+</div>
+<div class="step acted">
+<div class="t">step 3 &middot; 2026-08-03 09:47 UTC &middot; 15:17 IST</div>
+<h2>L1 &mdash; classification</h2>
+<div class="ev">SOFT_FUNDS &middot; confidence LOW &middot; recovery bucket <b>HIGH</b> (ordinal, never a float)</div>
+<p class="note">reason=None is not in the decision table; defaulted to SOFT_FUNDS</p>
+<h2>L2b &mdash; expected value</h2>
+<table><tr><th>action</th><th>P(rec)</th><th>recovery</th><th>+ lapse avoided</th><th>cost</th><th>issuer</th><th>churn</th><th>EV</th></tr>
+<tr class="win"><td>RETRY_SCHEDULED</td><td class="num">0.138</td><td class="num">538.37</td><td class="num">1,776.63</td><td class="num">-0.50</td><td class="num">-7.59</td><td class="num">-0.00</td><td class="num"><span class="pos">+2,306.91</span></td></tr>
+<tr><td>REQUEST_INSTRUMENT_UPDATE</td><td class="num">0.132</td><td class="num">516.84</td><td class="num">1,705.56</td><td class="num">-0.50</td><td class="num">-0.00</td><td class="num">-469.28</td><td class="num"><span class="pos">+1,752.62</span></td></tr>
+<tr><td>NUDGE</td><td class="num">0.088</td><td class="num">344.56</td><td class="num">1,137.04</td><td class="num">-0.50</td><td class="num">-0.00</td><td class="num">-469.28</td><td class="num"><span class="pos">+1,011.82</span></td></tr>
+<tr><td>STOP_PERMANENT</td><td class="num">0.000</td><td class="num">0.00</td><td class="num">0.00</td><td class="num">-0.00</td><td class="num">-0.00</td><td class="num">-0.00</td><td class="num"><span class="">+0.00</span></td></tr>
+</table>
+<p class="note">payday window not reachable before the invoice ages out</p>
+<h2>L2a &mdash; policy gate</h2>
+<div class="ev"><span class="tag ok">PERMITTED</span> <code>RETRY_SCHEDULED</code> &mdash; no rule blocks it</div>
+<h2>L3 &mdash; execution</h2><div class="ev"><span class="tag no">FAILED</span> RETRY_SCHEDULED</div>
+</div>
+<div class="step acted">
+<div class="t">step 4 &middot; 2026-08-04 09:47 UTC &middot; 15:17 IST</div>
+<h2>L1 &mdash; classification</h2>
+<div class="ev">SOFT_FUNDS &middot; confidence LOW &middot; recovery bucket <b>HIGH</b> (ordinal, never a float)</div>
+<p class="note">reason=None is not in the decision table; defaulted to SOFT_FUNDS</p>
+<h2>L2b &mdash; expected value</h2>
+<table><tr><th>action</th><th>P(rec)</th><th>recovery</th><th>+ lapse avoided</th><th>cost</th><th>issuer</th><th>churn</th><th>EV</th></tr>
+<tr class="win"><td>REQUEST_INSTRUMENT_UPDATE</td><td class="num">0.132</td><td class="num">516.84</td><td class="num">1,705.56</td><td class="num">-0.50</td><td class="num">-0.00</td><td class="num">-469.28</td><td class="num"><span class="pos">+1,752.62</span></td></tr>
+<tr><td>NUDGE</td><td class="num">0.088</td><td class="num">344.56</td><td class="num">1,137.04</td><td class="num">-0.50</td><td class="num">-0.00</td><td class="num">-469.28</td><td class="num"><span class="pos">+1,011.82</span></td></tr>
+<tr><td>STOP_PERMANENT</td><td class="num">0.000</td><td class="num">0.00</td><td class="num">0.00</td><td class="num">-0.00</td><td class="num">-0.00</td><td class="num">-0.00</td><td class="num"><span class="">+0.00</span></td></tr>
+</table>
+<h2>L2a &mdash; policy gate</h2>
+<div class="ev"><span class="tag ok">PERMITTED</span> <code>REQUEST_INSTRUMENT_UPDATE</code> &mdash; no rule blocks it</div>
+<h2>L3 &mdash; execution</h2><div class="ev"><span class="tag no">IGNORED</span> REQUEST_INSTRUMENT_UPDATE</div>
+</div>
+<div class="step ">
+<div class="t">step 5 &middot; 2026-08-05 09:47 UTC &middot; 15:17 IST</div>
+<h2>L1 &mdash; classification</h2>
+<div class="ev">SOFT_FUNDS &middot; confidence LOW &middot; recovery bucket <b>HIGH</b> (ordinal, never a float)</div>
+<p class="note">reason=None is not in the decision table; defaulted to SOFT_FUNDS</p>
+<h2>L2b &mdash; expected value</h2>
+<table><tr><th>action</th><th>P(rec)</th><th>recovery</th><th>+ lapse avoided</th><th>cost</th><th>issuer</th><th>churn</th><th>EV</th></tr>
+<tr class="win"><td>STOP_PERMANENT</td><td class="num">0.000</td><td class="num">0.00</td><td class="num">0.00</td><td class="num">-0.00</td><td class="num">-0.00</td><td class="num">-0.00</td><td class="num"><span class="">+0.00</span></td></tr>
+</table>
+<p class="note">stop is the zero reference: it moves no money and touches nobody</p>
+<p class="note">No action has positive expected value. Stop is not a rule firing here &mdash; it is what wins.</p>
+<h2>L2a &mdash; policy gate</h2>
+<div class="ev"><span class="tag ok">PERMITTED</span> <code>STOP_PERMANENT</code> &mdash; no rule blocks it</div>
+<h2>L3 &mdash; execution</h2><div class="ev"><span class="tag no">CLOSED</span> STOP_PERMANENT</div>
+</div>
+<div class="out"><b>Outcome:</b> stop_permanent &middot; 3 attempt(s), 1 contact(s)</div>
+<div class="gt"><b>Ground truth</b> (the agent never saw this) &mdash; true class <code>HARD_INSTRUMENT</code>; retries needed: never recoverable by retrying; payment link would not have worked; a perfect agent would open with <code>STOP_PERMANENT</code>.</div>
+<hr style="border:0;border-top:1px solid var(--line);margin:48px 0">
+<h1>case_0022 <span style="color:var(--mut);font-weight:400">&middot; CONTEXT</span></h1>
+<p class="sub">One invoice, end to end: payload &rarr; classification &rarr; expected value with every term shown &rarr; policy verdict &rarr; outcome.</p>
+<div class="card"><h2 style="margin-top:0">Failure payload</h2>
+<dl class="kv">
+<dt>error.code</dt><dd>GATEWAY_ERROR</dd>
+<dt>error.description</dt><dd>Payment processing failed due to error at bank or wallet gateway</dd>
+<dt>error.source</dt><dd>gateway</dd>
+<dt>error.step</dt><dd>payment_authorization</dd>
+<dt>error.reason</dt><dd>gateway_technical_error</dd>
+<dt>amount</dt><dd>Rs 3,696.96</dd>
+<dt>kind</dt><dd>RECURRING</dd>
+<dt>issuer / instrument</dt><dd>ICICI / upi</dd>
+<dt>mastercard advice code</dt><dd>absent — itself a signal</dd>
+<dt>customer</dt><dd>chronic_failer, tenure 518d, 6 successful payments, 6 prior failures/90d, 3 contacts/30d</dd>
+</dl></div>
+<div class="step acted">
+<div class="t">step 1 &middot; 2026-08-01 20:05 UTC &middot; 01:35 IST</div>
+<h2>L1 &mdash; classification</h2>
+<div class="ev">SOFT_TRANSIENT &middot; confidence HIGH &middot; recovery bucket <b>VERY_HIGH</b> (ordinal, never a float)</div>
+<p class="note">reason=&#x27;gateway_technical_error&#x27; maps to SOFT_TRANSIENT in the decision table</p>
+<h2>L2b &mdash; expected value</h2>
+<table><tr><th>action</th><th>P(rec)</th><th>recovery</th><th>+ lapse avoided</th><th>cost</th><th>issuer</th><th>churn</th><th>EV</th></tr>
+<tr class="win"><td>RETRY_SCHEDULED</td><td class="num">0.850</td><td class="num">3,142.42</td><td class="num">10,369.97</td><td class="num">-0.50</td><td class="num">-1.32</td><td class="num">-0.00</td><td class="num"><span class="pos">+13,510.57</span></td></tr>
+<tr><td>STOP_PERMANENT</td><td class="num">0.000</td><td class="num">0.00</td><td class="num">0.00</td><td class="num">-0.00</td><td class="num">-0.00</td><td class="num">-0.00</td><td class="num"><span class="">+0.00</span></td></tr>
+<tr><td>REQUEST_INSTRUMENT_UPDATE</td><td class="num">0.043</td><td class="num">157.12</td><td class="num">518.50</td><td class="num">-0.50</td><td class="num">-0.00</td><td class="num">-1,193.21</td><td class="num"><span class="neg">-518.09</span></td></tr>
+<tr><td>NUDGE</td><td class="num">0.026</td><td class="num">94.27</td><td class="num">311.10</td><td class="num">-0.50</td><td class="num">-0.00</td><td class="num">-1,193.21</td><td class="num"><span class="neg">-788.34</span></td></tr>
+</table>
+<p class="note">no timing signal: MAC absent and class has no cash-flow mechanism</p>
+<h2>L2a &mdash; policy gate</h2>
+<div class="ev"><span class="tag ok">PERMITTED</span> <code>RETRY_SCHEDULED</code> &mdash; no rule blocks it</div>
+<h2>L3 &mdash; execution</h2><div class="ev"><span class="tag ok">SUCCEEDED</span> RETRY_SCHEDULED</div>
+</div>
+<div class="out"><b>Outcome:</b> recovered on attempt 1 &middot; 1 attempt(s), 0 contact(s)</div>
+<div class="gt"><b>Ground truth</b> (the agent never saw this) &mdash; true class <code>SOFT_TRANSIENT</code>; retries needed: 1; payment link would not have worked; a perfect agent would open with <code>RETRY_SCHEDULED</code>.</div>
+<hr style="border:0;border-top:1px solid var(--line);margin:48px 0"><p class="foot">Generated by <code>sim/render_trace.py</code> from the same classifier, scorer and policy gate the simulation runs &mdash; not a reimplementation. Ground-truth blocks are shown only to let a reader check the decision; no layer of the agent can see them.</p></div></body></html>

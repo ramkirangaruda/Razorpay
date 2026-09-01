@@ -31,6 +31,10 @@ class FailureClass(str, Enum):
     HARD_RISK = "HARD_RISK"
     HARD_MANDATE = "HARD_MANDATE"
 
+    @property
+    def is_hard(self) -> bool:
+        return self.value.startswith("HARD_")
+
 
 # ---------------------------------------------------------------------------
 # §1 Decline reason distribution — docs/world-model.md §1
@@ -182,3 +186,100 @@ SENSITIVITY_SWEEP: list[SensitivitySweepSpec] = [
     SensitivitySweepSpec("ASSUMED_ISSUER_DEGRADATION_THRESHOLD", ASSUMED_ISSUER_DEGRADATION_THRESHOLD, 0.10, 0.35),
     SensitivitySweepSpec("ASSUMED_BREAKER_PENALTY", ASSUMED_BREAKER_PENALTY, 0.3, 0.7),
 ]
+
+
+# ---------------------------------------------------------------------------
+# §4 Customer churn — the WORLD's process, deliberately not the agent's
+# ---------------------------------------------------------------------------
+#
+# Read this before comparing anything to anything.
+#
+# The sharpest attack on a simulated result is that we write both the constants
+# that generate outcomes and the constants the agent optimises against. If the
+# simulator's churn function and the agent's churn_hazard are the same function,
+# Backstop beats naive BY CONSTRUCTION — we told the world that contacts cause
+# churn, then told the agent to avoid contacts, and then reported our own
+# premise back as a finding.
+#
+# So the two are kept structurally different, not merely differently-numbered:
+#
+#   The agent (app/scorer.churn_hazard, constants in world_model_constants.py)
+#   believes fatigue is GEOMETRIC in contact count — base x growth^n — with an
+#   exponential recency decay on the accumulated count.
+#
+#   The world (below) uses a SATURATING process: each contact adds a hazard
+#   increment that shrinks as the customer's patience is consumed, and patience
+#   recovers linearly with time rather than exponentially.
+#
+# Neither form is more correct; there is no public data on either, which is the
+# honest position stated in docs/world-model.md. The point is that an agent
+# optimising the geometric belief against a saturating world is solving a
+# problem it has been given the wrong shape for, so any advantage it shows is
+# not an artefact of the two being the same equation. sim/run_arms.py sweeps
+# agent belief against world truth to show what happens as the two diverge.
+
+ASSUMED_WORLD_CHURN_CEILING = 0.22     # max cumulative churn probability from contact alone
+ASSUMED_WORLD_CHURN_SATURATION = 2.5   # contacts at which roughly 63% of the ceiling is reached
+ASSUMED_WORLD_PATIENCE_RECOVERY_DAYS = 21.0   # linear, not exponential — unlike the agent's belief
+
+# Remaining customer lifetime value as a multiple of the failed invoice. The
+# agent believes 6.0x (Redux's worked example). The world is drawn per customer
+# across a wide band, because a single multiple across every customer is the
+# assumption most likely to be flattering us.
+ASSUMED_WORLD_LTV_MULTIPLE_RANGE = (2.0, 14.0)
+
+# The cost of giving up. An invoice that is never recovered does not simply
+# vanish — a meaningful share of those customers lapse, which is what
+# "involuntary churn" names.
+#
+# This constant is what stops the policy being degenerate in the other
+# direction. Without it, stopping is free: the agent would stop on everything,
+# score a perfect zero on harm, and the frontier chart would be a single dot at
+# the origin. With it, both doing too much and doing too little cost real money,
+# which is the only configuration in which an efficient frontier exists at all.
+ASSUMED_WORLD_UNRECOVERED_CHURN = 0.55
+
+# Cost the merchant actually bears per failed authorisation, over and above the
+# gateway fee: issuer-side scoring, acquirer review risk, network penalties on
+# excessive reattempts. The agent has its own belief about this number; this is
+# what the world charges.
+ASSUMED_WORLD_ISSUER_PENALTY_INR = 8.80
+ASSUMED_WORLD_RETRY_FEE_INR = 0.50
+
+
+def world_churn_probability(contacts: int, days_since_last: float | None) -> float:
+    """
+    Ground truth: probability this customer churns as a result of dunning
+    contact, given how many they have had and how long ago.
+
+    Saturating exponential in contact count, linear patience recovery in time.
+    Deliberately a different shape from the agent's geometric belief — see the
+    section header.
+    """
+    if contacts <= 0:
+        return 0.0
+    effective = float(contacts)
+    if days_since_last is not None:
+        recovered = min(1.0, days_since_last / ASSUMED_WORLD_PATIENCE_RECOVERY_DAYS)
+        effective = max(0.0, effective - recovered * effective)
+    return ASSUMED_WORLD_CHURN_CEILING * (
+        1.0 - 2.718281828459045 ** (-effective / ASSUMED_WORLD_CHURN_SATURATION)
+    )
+
+
+SENSITIVITY_SWEEP.extend(
+    [
+        SensitivitySweepSpec(
+            "ASSUMED_WORLD_CHURN_CEILING", ASSUMED_WORLD_CHURN_CEILING, 0.0, 0.40
+        ),
+        SensitivitySweepSpec(
+            "ASSUMED_WORLD_CHURN_SATURATION", ASSUMED_WORLD_CHURN_SATURATION, 1.0, 6.0
+        ),
+        SensitivitySweepSpec(
+            "ASSUMED_WORLD_UNRECOVERED_CHURN", ASSUMED_WORLD_UNRECOVERED_CHURN, 0.25, 0.80
+        ),
+        SensitivitySweepSpec(
+            "ASSUMED_WORLD_ISSUER_PENALTY_INR", ASSUMED_WORLD_ISSUER_PENALTY_INR, 0.5, 40.0
+        ),
+    ]
+)
