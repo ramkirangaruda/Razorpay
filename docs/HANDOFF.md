@@ -6,10 +6,11 @@ touching the repository.
 **Repo:** `C:\Users\ramki\Desktop\here\Razorpay` — also `github.com/ramkirangaruda/Razorpay`
 **Deadline:** 4 September 2026 (the original brief says 5 Sep; work to 4)
 **Event:** Razorpay AI Builder Internship 2026 buildathon, Track 3 — AI Revenue Recovery
-**State:** `main` at `6d6fd75`, working tree clean
-**Tests:** 275 passing (`python -m pytest`) — 244 pre-existing + 18 for `app/executor.py`
+**State:** `main` at `a1163d4`, working tree clean
+**Tests:** 280 passing (`python -m pytest`) — 244 pre-existing + 18 for `app/executor.py`
 (15 always-on, 3 live-only against a real Razorpay test-mode account) + 13 for
-`app/audit.py`; see §5.2/§5.3 below and `docs/build-log.md`'s 1 September evening entries
+`app/audit.py` + 5 for `sim/render_calibration.py`; see §5.1–§5.3 below and
+`docs/build-log.md`'s 1 September evening entries
 
 ---
 
@@ -190,8 +191,14 @@ available, run it and confirm the live path works — the interesting number is 
 rate, which is a reportable fact about model reliability in a money-movement path. Do not overwrite
 the existing recording with a live run without keeping both; the README's figures cite the recording.
 
-A calibration plot (predicted bucket against realised recovery rate) is still unbuilt and is cheap —
-the data is all in `sim/data/l1_classifications_seed42.json` plus the batch's ground truth.
+**The calibration plot is done** (`sim/render_calibration.py` → `docs/results/calibration.html`).
+**It is not a clean confirmation, and do not "fix" the page to make it look like one.** The table's
+realized rate orders close to monotonically; the model's does not — its own peak is at MEDIUM
+(87%), not at VERY_HIGH (70%, nearly tied with LOW's 67%). That is a different axis from the
+83%-vs-78% classification accuracy already reported (getting the failure class right vs. whether
+the recovery bucket then orders realized outcomes), and both are true at once. `tests/test_calibration.py`
+pins the specific numbers this claim depends on — if a future change moves them, update the page's
+prose deliberately, the same rule as `test_reported_claims.py`.
 
 ### 5.2 ~~L3~~ — DONE
 
@@ -331,13 +338,14 @@ load-bearing in the README and a judge from Razorpay will know it.
 ## 8. Commands
 
 ```
-python -m pytest                                   # 275 tests
+python -m pytest                                   # 280 tests
 python -m sim.generate_batch --n 120 --seed 42
 python -m sim.run_arms --n 120 --seed 42
 python -m sim.run_arms --adversarial
 python -m sim.run_arms --belief-error 0.5 --belief-error 2.0
 python -m sim.render_trace                         # docs/results/trace.html
 python -m sim.render_frontier                      # docs/results/frontier.html
+python -m sim.render_calibration                    # docs/results/calibration.html
 python -m sim.gen_world_model_doc                  # regenerates docs/world-model.md
 python sim/world_model_constants.py --citations
 python sim/world_model_constants.py --unsourced
@@ -376,6 +384,7 @@ sim/
   data/live_failure_capture.json  a genuine Razorpay decline, committed like the L1 recording
   render_trace.py            docs/results/trace.html
   render_frontier.py         docs/results/frontier.html
+  render_calibration.py      docs/results/calibration.html
   gen_world_model_doc.py     docs/world-model.md
 tests/
   conftest.py           loads .env (RAZORPAY_KEY_ID/SECRET, ANTHROPIC_API_KEY) for pytest
@@ -386,6 +395,7 @@ tests/
   test_scorer.py             including findings we would rather were untrue
   test_reported_claims.py    asserts the README's numbers against a live run
   test_l1_measurement.py     pins what the model bought, including where it TIES
+  test_calibration.py        pins the calibration page's numbers, incl. the model's non-monotonic bucket order
   test_executor.py           L3 contract; 3 tests live-only, skipped without .env
 docs/
   architecture.md  world-model.md (generated)  build-log.md  results/

@@ -168,6 +168,14 @@ policy arms, on fewer attempts and fewer contacts than either.
 **Better classification did not by itself produce more money.** It had to be filtered by the model's
 own confidence first. That is the most useful thing this measurement produced.
 
+**Classification accuracy and bucket calibration are different axes, and the model does not win
+both.** `docs/results/calibration.html` checks whether `recovery_bucket` orders realized outcomes,
+not whether the failure class was right. The table's realized rate orders close to monotonically
+across buckets; the model's does not — its own peak realized rate sits at MEDIUM (87%), not at its
+top bucket VERY_HIGH (70%, nearly tied with LOW's 67%). So the model classifies the failure class
+better (83% against 78%) while ordering its own recovery estimate worse at the top of the range,
+in the same batch, and neither figure is averaged away to hide the other.
+
 > **Provenance, because it changes how much these numbers are worth.** The classifications in
 > `sim/data/l1_classifications_seed42.json` were produced by Claude reading only the fields a real
 > L1 receives, given `SYSTEM_PROMPT` verbatim, across four separate fresh contexts that had never
@@ -325,7 +333,7 @@ A system that only reports where it was too aggressive is telling half the story
 
 ```bash
 pip install -r requirements.txt
-python -m pytest                          # 275 tests (3 skipped without a Razorpay test key)
+python -m pytest                          # 280 tests (3 skipped without a Razorpay test key)
 python -m sim.generate_batch --n 120 --seed 42
 python -m sim.run_arms --n 120 --seed 42
 python -m sim.run_arms --adversarial
@@ -333,6 +341,7 @@ python -m sim.run_arms --belief-error 0.5 --belief-error 2.0
 python -m sim.demo_live_trace             # the one real end-to-end L3 trace
 python -m sim.render_trace                # docs/results/trace.html
 python -m sim.render_frontier             # docs/results/frontier.html
+python -m sim.render_calibration          # docs/results/calibration.html
 python sim/world_model_constants.py --citations   # provenance table
 python sim/world_model_constants.py --unsourced   # the honesty section
 python sim/world_model_constants.py --breakeven   # the table above
@@ -350,7 +359,7 @@ moves to `halted` and the customer is emailed a card-update link.
 **Built and tested:** L2a (policy gate, stopping rules), L2b (EV scorer), L1's interface and both
 implementations, the eval batch with ground truth, the three-arm simulator, both judge-facing
 artifacts, the measured LLM arm, L3 (`app/executor.py`) — live-verified against a real Razorpay
-test-mode account — and the append-only audit log writer (`app/audit.py`). 275 tests (149
+test-mode account — and the append-only audit log writer (`app/audit.py`). 280 tests (149
 pre-existing on L2a, untouched).
 
 **L3, and the one real trace.** `RazorpayExecutor` calls Razorpay's Orders and Payment Links APIs for
@@ -396,6 +405,7 @@ sim/
   demo_live_trace.py        one real Razorpay decline, run through the full pipeline
   render_trace.py           docs/results/trace.html
   render_frontier.py        docs/results/frontier.html
+  render_calibration.py     docs/results/calibration.html
 tests/
   test_policy.py      the one-way valve as a property, plus interaction tests
   test_scorer.py      including the findings we would rather were untrue

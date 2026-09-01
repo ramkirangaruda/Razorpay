@@ -398,3 +398,46 @@ the hour" scope this section asked for.
 unaffected. Both L1/L2/L3/audit are now built; `docs/HANDOFF.md` §5 has no further
 line items with `NOT BUILT` on the original L1–L3+audit list — remaining work is the
 demo walkthrough (§5.4) and the RBI wording check (§5.5).
+
+---
+
+## 2026-09-01 (evening, continued) — the calibration plot, and a claim caught before it shipped
+
+The last open item from §5.1. `sim/render_calibration.py` plots realized recovery rate
+against predicted bucket for both classifiers, with the agent's own belief
+(`P_RECOVERY_BY_BUCKET`) shown for context. Getting the ground-truth definition right took
+more care than the plot itself: that constant's own comment calls it "probability of
+recovery on the next single attempt," but the only ground truth `sim/generate_batch.py`
+actually produces per case is coarser — recoverable at all, by retry or by link, within the
+retry horizon. Those are related but not the same quantity, so the page says so rather than
+drawing a y=x "perfect calibration" line that would overclaim a comparison the data can't
+support, and frames itself as an ORDERING check instead.
+
+**A claim caught before it shipped, by reading the actual numbers rather than trusting a
+plausible-sounding first draft.** The first version of the "What this says" section
+asserted "VERY_HIGH is the clear top of the range for both classifiers." It is, for the
+table (100%). It is not, for the model — the model's own peak realized rate is at MEDIUM
+(87%), with VERY_HIGH realizing lower (70%) and sitting close to LOW (67%). That would have
+been exactly the kind of overclaim this project's own style guards against elsewhere
+(see the README's "we are not going to bury that" framing), shipped in the one artifact
+whose entire job is checking whether a number can be trusted. Caught by comparing the
+prose against `collect()`'s actual output before committing, not by a test — the test came
+after, to make sure it stays caught.
+
+**What the finding actually is, once stated correctly:** classification accuracy (getting
+the failure class right, 83% model vs 78% table) and bucket calibration (does the recovery
+estimate then order realized outcomes) are different axes, and this batch shows the model
+ahead on the first and behind on the second at the top of the range. Both are true at once
+and neither is averaged away. The likely mechanism for the model's specific inversion:
+VERY_HIGH gets n=47 cases from the model against the table's n=18 — a wider, less
+selective net that dilutes the bucket with cases the table would not have put there.
+
+`tests/test_calibration.py` pins the specific numbers this section's claims depend on,
+same reasoning as `test_l1_measurement.py` and `test_reported_claims.py`: if a change moves
+them, a test fails and the prose gets updated deliberately, rather than the page quietly
+going wrong.
+
+**Where it stands:** 280 tests (275 + 5 new). All of §5.1 is now closed except the live
+`LLMClassifier` run against the real Anthropic endpoint, which needs a key and is
+explicitly optional. Remaining: the demo walkthrough (§5.4) and the RBI wording check
+(§5.5).
