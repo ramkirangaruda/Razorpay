@@ -121,7 +121,13 @@ RBI_EMANDATE_2026 = Source(
     detail=(
         "Circular RBI/DPSS/2026-27/396 (RBI/CO.DPSS.POLC.No.S56/02.14.003/"
         "2026-27), 21 April 2026. Effective immediately; consolidates and "
-        "repeals eight circulars issued 2019-2024."
+        "repeals eight circulars issued 2019-2024. VERIFIED against the "
+        "primary source (the URL above) on 1 September 2026 - see "
+        "docs/HANDOFF.md section 5.5 and docs/build-log.md for the checked "
+        "figures. Every figure below was confirmed at the section level, not "
+        "just the headline number: the 24h/opt-out requirement is Section "
+        "6(c); withdrawing the underlying mandate entirely (a different "
+        "right) is the separate Section 4(b)."
     ),
 )
 
@@ -229,10 +235,13 @@ EMANDATE_PREDEBIT_NOTICE_HOURS = _reg(
         sources=(RBI_EMANDATE_2026, STRIPE_INDIA),
         note=(
             "Pre-transaction notification to the customer at least 24h before "
-            "every debit, carrying full transaction detail and an opt-out. "
-            "Binding on the e-mandate rail: no sub-24h retry is legal, which "
-            "kills 'retry within the hour' outright for Indian recurring. "
-            "Stripe builds a 26h buffer for downstream slack; we use 26h too."
+            "every debit, carrying full transaction detail (merchant name, "
+            "amount, debit date/time, mandate reference, debit reason) and an "
+            "opt-out for that specific transaction (Section 6(c) - distinct "
+            "from withdrawing the mandate entirely, Section 4(b)). Binding on "
+            "the e-mandate rail: no sub-24h retry is legal, which kills "
+            "'retry within the hour' outright for Indian recurring. Stripe "
+            "builds a 26h buffer for downstream slack; we use 26h too."
         ),
     ),
 )
