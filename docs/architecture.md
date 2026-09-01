@@ -90,7 +90,11 @@ Append-only, one row per event (`CLASSIFIED`, `POLICY_PERMITTED`, `POLICY_VETOED
 `CIRCUIT_BREAKER_TRIPPED/RESET` — see `AuditEventType` in `app/models.py`). This table, not the
 `Attempt` row, is the actual source of truth for "what happened and why" — `Attempt` is a mutable
 convenience view of an attempt's current state; `AuditLogEntry` is never updated or deleted.
-`app/audit.py` is the only file permitted to write to it, and exposes no update/delete methods.
+`app/audit.py` is the only file permitted to write to it, and exposes no update/delete methods -
+built and tested (`tests/test_audit.py`), including a structural test that the class has no method
+whose name contains update/delete/remove/clear. Not yet wired into `sim/run_arms.py`, which is a
+pure in-memory harness with no DB by design; `AuditLog` is a standalone module ready for a real
+caller.
 
 ## The L2 split
 
@@ -165,7 +169,9 @@ real Razorpay test-mode account, including one full real end-to-end trace
 (`sim/demo_live_trace.py`): a genuine declined payment, classified, priced, gated, and followed by a
 genuine payment link created in response. See `docs/HANDOFF.md` §5.2 and `docs/build-log.md`'s
 1 September evening entry for two places the live API's actual behaviour did not match its
-documentation. 262 tests, of which the 149 on L2a are unmodified.
+documentation, and `audit.py` (append-only writer, `AuditLog`, no update/delete method - checked
+structurally by `tests/test_audit.py`). 275 tests, of which the 149 on L2a are unmodified.
 
-**Not built:** `audit.py`. The schema exists in `models.py`; the append-only writer does not, and the
-simulator carries per-decision traces in memory instead.
+**Not built:** nothing on the original L1/L2/L3/audit list. `audit.py` is not yet wired into
+`sim/run_arms.py`, which stays a pure in-memory harness with no DB by design - see §5.3 of
+`docs/HANDOFF.md`.

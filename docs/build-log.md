@@ -344,3 +344,57 @@ failure glued onto a simulated recovery.
 `sim/run_arms.py` untouched and reconfirmed unaffected — the simulator resolves outcomes
 probabilistically and never calls L3, so none of the four-arm comparison depends on any
 of this. Section 5.3 (`app/audit.py`) is next.
+
+---
+
+## 2026-09-01 (evening, continued) — the audit log writer
+
+Section 5.3. `app/audit.py`'s `AuditLog` takes a caller-owned `Session` and exposes one
+typed method per domain event (`classified`, `policy_decision`, `executed`,
+`outcome_recorded`, `contact_sent`, `circuit_breaker_tripped`/`circuit_breaker_reset`),
+each taking the actual domain object — `Classification`, `PolicyDecision`,
+`ExecutionResult` — rather than a payload dict assembled fresh at the call site. That
+matters more than it sounds: a dict built per call site is exactly how a payload schema
+drifts silently across a codebase, one call at a time, with no single place that would
+catch it.
+
+`policy_decision()` writes one `STOPPING_RULE_FIRED` row per fired rule — tagged with its
+`REGULATORY`/`BACKSTOP` basis from `app/rule_basis.py` — plus one `POLICY_PERMITTED` or
+`POLICY_VETOED` row for the outcome. That makes the veto-rate-by-basis metric (§4, "35
+firings, all REGULATORY") readable straight off the audit table instead of requiring a
+join against `stopping_rules.py` at read time.
+
+**"No update or delete method" is checked, not stated.** A comment saying a class is
+append-only is a promise nothing enforces. `test_append_only_no_update_or_delete_method_exists_on_the_class`
+walks `dir(AuditLog)` for any public method whose name contains update/delete/remove/clear
+and fails if one exists — so a future session adding `update_entry` to fix some one-off
+data problem gets a failing test instead of a silently broken guarantee. This is the same
+move as `EXECUTABLE_ACTIONS` in `app/executor.py` and `assert set(RULE_BASIS) ==
+set(RuleName)` in `app/rule_basis.py`: a structural invariant checked by name or by set
+equality, not left as a convention for a future session to remember.
+
+**A second thing worth being deliberate about: `AuditLog` never commits.** It flushes on
+every append (so `entry.id`/`created_at` are populated immediately for the caller) but
+leaves `session.commit()` to whoever owns the transaction.
+`test_append_never_commits_the_session` proves this by appending, rolling back, and
+querying for zero rows. The reasoning: an attempt's classify → score → gate → execute
+cycle should commit as one unit together with the `Attempt` row's update. If `AuditLog`
+committed on every event instead, a crash between "L3 executed" and "the `Attempt` row
+recorded the outcome" would leave a durable audit row describing an action whose own
+bookkeeping never landed — the log would say something happened that the rest of the
+system has no record of.
+
+**Not wired into `sim/run_arms.py`, and that is a scope decision, not an oversight.** The
+simulator is a pure in-memory harness with no DB — wiring a real `Session` through it would
+mean adding a persistence layer to a component whose entire job is running thousands of
+fast, disposable in-memory trials across arms and seeds. `AuditLog` is a standalone module,
+built and tested against a real in-memory SQLite schema (`app/audit.make_engine`), ready
+for whatever calls L1 → L2 → L3 for real — which as of this session is
+`sim/demo_live_trace.py`. Wiring the two together (so the one real trace's own audit rows
+are printable) is cheap and would be a good next step, but was not required for the "worth
+the hour" scope this section asked for.
+
+**Where it stands:** 275 tests (262 + 13 new). `sim/run_arms.py` untouched, reconfirmed
+unaffected. Both L1/L2/L3/audit are now built; `docs/HANDOFF.md` §5 has no further
+line items with `NOT BUILT` on the original L1–L3+audit list — remaining work is the
+demo walkthrough (§5.4) and the RBI wording check (§5.5).

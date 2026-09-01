@@ -6,10 +6,10 @@ touching the repository.
 **Repo:** `C:\Users\ramki\Desktop\here\Razorpay` — also `github.com/ramkirangaruda/Razorpay`
 **Deadline:** 4 September 2026 (the original brief says 5 Sep; work to 4)
 **Event:** Razorpay AI Builder Internship 2026 buildathon, Track 3 — AI Revenue Recovery
-**State:** `main` at `dac6d79`, working tree clean
-**Tests:** 262 passing (`python -m pytest`) — 244 pre-existing + 18 for `app/executor.py`
-(15 always-on, 3 live-only against a real Razorpay test-mode account; see §5.2 below and
-`docs/build-log.md`'s 1 September evening entry)
+**State:** `main` at `6d6fd75`, working tree clean
+**Tests:** 275 passing (`python -m pytest`) — 244 pre-existing + 18 for `app/executor.py`
+(15 always-on, 3 live-only against a real Razorpay test-mode account) + 13 for
+`app/audit.py`; see §5.2/§5.3 below and `docs/build-log.md`'s 1 September evening entries
 
 ---
 
@@ -63,7 +63,10 @@ failure payload + customer history
       app/circuit_breaker.py
       │  permits
       ▼
-  L3  NOT BUILT — see §5
+  L3  app/executor.py       idempotent Razorpay calls, live-verified — see §5.2
+      │
+      ▼
+  app/audit.py — append-only writer, no update/delete method — see §5.3
 ```
 
 **The one-way valve.** Each layer may only reject or narrow what the previous layer proposed.
@@ -228,12 +231,34 @@ Live tests need `RAZORPAY_KEY_ID`/`RAZORPAY_KEY_SECRET` in `.env` (gitignored,
 `tests/conftest.py` loads it — no new dependency). Without them, `test_executor.py`'s live
 tests skip and `sim/demo_live_trace.py` prints what L1/L2b/L2a decided without executing.
 
-### 5.3 `app/audit.py`
+### 5.3 ~~`app/audit.py`~~ — DONE
 
-The schema exists in `app/models.py` (`AuditLogEntry`, append-only, `AuditEventType`). The writer
-does not; the simulator carries per-decision traces in memory instead. This is the concrete artifact
-behind "every money action explainable", so it is worth the hour: append-only, no update or delete
-methods exposed at all.
+`AuditLog` takes a caller-owned `Session`; typed methods (`classified`, `policy_decision`,
+`executed`, `outcome_recorded`, `contact_sent`, `circuit_breaker_tripped/reset`) take the
+actual domain object (`Classification`, `PolicyDecision`, `ExecutionResult`) rather than a
+hand-assembled payload dict, so every call site produces the same payload shape.
+`policy_decision()` writes one `STOPPING_RULE_FIRED` row per fired rule — tagged with its
+`REGULATORY`/`BACKSTOP` basis from `app/rule_basis.py` — plus one `POLICY_PERMITTED` or
+`POLICY_VETOED` row for the outcome, so the veto-rate-by-basis metric is readable straight
+off the table.
+
+**No update/delete method exists — checked structurally, not left as a comment.**
+`test_append_only_no_update_or_delete_method_exists_on_the_class` walks `dir(AuditLog)`
+for the words update/delete/remove/clear, so a future addition of `update_entry` fails a
+test instead of quietly weakening the guarantee. **Do not add such a method** — if a row
+is ever wrong, the correct fix is a new row, not an edit to an old one.
+
+`AuditLog` flushes on every append but never commits — the caller's classify/score/
+gate/execute cycle should commit as one unit, or a crash mid-cycle could leave a
+committed audit row describing a decision whose `Attempt` update never landed.
+`test_append_never_commits_the_session` proves this by rolling back and finding nothing
+persisted.
+
+**Not wired into `sim/run_arms.py`.** The simulator is a pure in-memory harness with no DB
+and carries traces in memory by design (documented and accepted, not a gap) — `AuditLog` is
+a standalone module ready for a real caller, e.g. a future `app/api.py` or `sim/demo_live_trace.py`.
+Wiring it into the live demo trace so a judge can see a real audit trail for the real
+declined payment would be a cheap, worthwhile follow-up if time allows — not required.
 
 ### 5.4 Demo walkthrough
 
@@ -306,7 +331,7 @@ load-bearing in the README and a judge from Razorpay will know it.
 ## 8. Commands
 
 ```
-python -m pytest                                   # 244 tests
+python -m pytest                                   # 275 tests
 python -m sim.generate_batch --n 120 --seed 42
 python -m sim.run_arms --n 120 --seed 42
 python -m sim.run_arms --adversarial
@@ -341,7 +366,7 @@ app/
   scorer.py            L2b, the EV model
   classifier.py        L1: lookup + LLM implementations
   executor.py          L3: Executor protocol, FakeExecutor, RazorpayExecutor
-  audit.py             NOT BUILT
+  audit.py             append-only writer, no update/delete method (checked structurally)
 sim/
   world_model.py             the WORLD's truth — not the agent's beliefs
   world_model_constants.py   the AGENT's beliefs, three-tier provenance
@@ -354,6 +379,7 @@ sim/
   gen_world_model_doc.py     docs/world-model.md
 tests/
   conftest.py           loads .env (RAZORPAY_KEY_ID/SECRET, ANTHROPIC_API_KEY) for pytest
+  test_audit.py          audit.py's contract; the structural no-update/delete check lives here
   test_policy.py             149 tests with test_circuit_breaker  [FROZEN]
   test_circuit_breaker.py                                          [FROZEN]
   test_compliance_rules.py   interaction tests for the added rules

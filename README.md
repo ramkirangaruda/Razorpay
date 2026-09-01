@@ -325,7 +325,7 @@ A system that only reports where it was too aggressive is telling half the story
 
 ```bash
 pip install -r requirements.txt
-python -m pytest                          # 262 tests (3 skipped without a Razorpay test key)
+python -m pytest                          # 275 tests (3 skipped without a Razorpay test key)
 python -m sim.generate_batch --n 120 --seed 42
 python -m sim.run_arms --n 120 --seed 42
 python -m sim.run_arms --adversarial
@@ -349,8 +349,9 @@ moves to `halted` and the customer is emailed a card-update link.
 
 **Built and tested:** L2a (policy gate, stopping rules), L2b (EV scorer), L1's interface and both
 implementations, the eval batch with ground truth, the three-arm simulator, both judge-facing
-artifacts, the measured LLM arm, and L3 (`app/executor.py`) — live-verified against a real Razorpay
-test-mode account. 262 tests (149 pre-existing on L2a, untouched).
+artifacts, the measured LLM arm, L3 (`app/executor.py`) — live-verified against a real Razorpay
+test-mode account — and the append-only audit log writer (`app/audit.py`). 275 tests (149
+pre-existing on L2a, untouched).
 
 **L3, and the one real trace.** `RazorpayExecutor` calls Razorpay's Orders and Payment Links APIs for
 real. Idempotency was checked against the live API rather than assumed from documentation, which
@@ -361,10 +362,14 @@ one real declined payment — captured by actually completing a Razorpay test-mo
 documented failing card — through classification, pricing, and gating, then executes the permitted
 action for real too: a genuine payment link, not a simulated one.
 
-**Not built, and not claimed:**
-
-- **`app/audit.py`.** The schema exists; the append-only writer does not. The simulator carries
-  per-decision traces in memory instead.
+**The audit log.** `app/audit.py`'s `AuditLog` is the only thing permitted to write to
+`AuditLogEntry`, and exposes no update or delete method — checked structurally by a test that walks
+the class for method names, not left as a comment. Typed methods take the actual domain object
+(`Classification`, `PolicyDecision`, `ExecutionResult`) rather than a hand-assembled payload dict, so
+every call site produces the same shape; a policy decision writes one row per fired rule, tagged
+`REGULATORY`/`BACKSTOP`, plus one outcome row, so the veto-rate-by-basis metric reads straight off
+the table. Not yet wired into `sim/run_arms.py`, which is a pure in-memory harness with no DB by
+design — this is a standalone module ready for a real caller.
 
 **Known limitation:** the evaluation is entirely synthetic, and ground-truth labels are exact by
 construction rather than hand-annotated. `docs/world-model.md` documents every constant, its
@@ -382,6 +387,7 @@ app/
   policy.py           L2a: the gate, with the valve asserted in code
   models.py           schema: invoices, attempts, append-only audit log
   executor.py         L3: idempotent Razorpay calls, live-verified
+  audit.py            the append-only writer: no update/delete method, checked structurally
 sim/
   world_model.py            the WORLD's truth — not the agent's beliefs
   world_model_constants.py  the AGENT's beliefs, with three-tier provenance
