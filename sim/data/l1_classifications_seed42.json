@@ -1,0 +1,1558 @@
+{
+ "_README": "L1 classifications for batch seed=42, n=120. PROVENANCE MATTERS HERE, so read this. These were produced by Claude (Sonnet-class), one pass, temperature not controlled, via a subagent harness rather than by app.classifier.LLMClassifier calling the Anthropic API. The model saw ONLY the fields a real L1 receives - the Razorpay error object, instrument, issuer, amount, kind and customer history - and was given app.classifier.SYSTEM_PROMPT verbatim as its instructions. It never saw ground_truth, the bucket label, the ambiguity flags, or sim/generate_batch.py. WHY THAT MATTERS: whoever writes the batch generator knows the answer key, so a classification produced by that same context would be contaminated and the accuracy figures would be meaningless. Four separate fresh contexts did the work, 30 cases each. WHAT THIS IS NOT: a live API run. app.classifier.LLMClassifier is the production path and remains untested against the real endpoint. Replaying this file is deterministic; re-running the model is not, and would not reproduce these exact labels.",
+ "seed": 42,
+ "n": 120,
+ "model": "claude (sonnet-class), via subagent harness",
+ "prompt_source": "app.classifier.SYSTEM_PROMPT",
+ "classifications": {
+  "case_0034": {
+   "case_id": "case_0034",
+   "classification": "SOFT_TRANSIENT",
+   "classification_confidence": "LOW",
+   "recovery_bucket": "MEDIUM",
+   "ambiguity_flags": [
+    "reason_null_bare_bank_decline",
+    "cause_not_supplied_by_issuer_documented_gateway_behaviour",
+    "could_equally_be_funds_or_limit"
+   ],
+   "proposed_action": "RETRY_SCHEDULED",
+   "deferral_days": 2,
+   "rationale": "source=bank at step=payment_authorization with reason=null and only the generic description 'Payment failed' \u2014 the issuer gave no cause, so no specific failure mode can be asserted. AXIS card, amount_inr 3915.43 sits below the customer's typical 5540.59, which argues against a limit trip and weakens a funds read. tenure_days 133 with successful_payments 6 and prior_failures_90d 2 is a middling, not clean, record; prior_contacts_30d 1 five days ago leaves room for one more touch. A short deferral avoids stacking a second authorization attempt into the same issuer window."
+  },
+  "case_0010": {
+   "case_id": "case_0010",
+   "classification": "HARD_INSTRUMENT",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "HIGH",
+   "ambiguity_flags": [
+    "issuer_block_reason_not_disclosed_could_be_risk_driven"
+   ],
+   "proposed_action": "REQUEST_INSTRUMENT_UPDATE",
+   "deferral_days": 0,
+   "rationale": "reason=card_blocked from source=bank at payment_authorization is an issuer state on the PNB card, not a condition that changes with time, so re-presenting the same token is wasted. The customer side is strong: tenure_days 479, successful_payments 8, prior_failures_90d 0, and amount_inr 697.29 is close to their typical 531.39 \u2014 nothing here suggests unwillingness to pay, only a dead card. prior_contacts_30d 1 at 10 days ago means an instrument-update ask is not fatiguing. Note the block itself may be risk-driven at the issuer, but nothing in the payload says so."
+  },
+  "case_0087": {
+   "case_id": "case_0087",
+   "classification": "SOFT_TRANSIENT",
+   "classification_confidence": "LOW",
+   "recovery_bucket": "VERY_HIGH",
+   "ambiguity_flags": [
+    "reason_null_bare_bank_decline",
+    "cause_not_supplied_by_issuer_documented_gateway_behaviour"
+   ],
+   "proposed_action": "RETRY_NOW",
+   "deferral_days": 0,
+   "rationale": "reason=null with source=bank at payment_authorization gives no cause, but the customer picture is decisive: tenure_days 966, successful_payments 37, prior_failures_90d 0 and prior_contacts_30d 0 (days_since_last_contact null). amount_inr 2907.28 is well under their typical 4316.64, so a funds or cap explanation is unlikely for a UPI RECURRING debit that has cleared 37 times. A single unexplained bank decline against that record reads as a momentary NPCI/issuer-leg failure and the cheapest correct move is an immediate re-presentment before any customer contact is spent."
+  },
+  "case_0051": {
+   "case_id": "case_0051",
+   "classification": "HARD_INSTRUMENT",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "HIGH",
+   "ambiguity_flags": [
+    "recurring_mandate_dies_with_the_blocked_card_and_needs_fresh_authorisation",
+    "issuer_block_reason_not_disclosed"
+   ],
+   "proposed_action": "REQUEST_INSTRUMENT_UPDATE",
+   "deferral_days": 0,
+   "rationale": "reason=card_blocked on the SBI card at payment_authorization ends this instrument; kind=RECURRING means the standing mandate is anchored to it, so the update must re-authorise, not merely swap a number. Customer quality is high \u2014 tenure_days 561, successful_payments 26, prior_failures_90d 0, prior_contacts_30d 0 \u2014 and amount_inr 13515.37 against typical 11703.11 is only modestly above normal, so size is not the obstacle. The single ask has a clean channel and an unfatigued recipient."
+  },
+  "case_0019": {
+   "case_id": "case_0019",
+   "classification": "SOFT_TRANSIENT",
+   "classification_confidence": "LOW",
+   "recovery_bucket": "MEDIUM",
+   "ambiguity_flags": [
+    "generic_reason_payment_failed_from_bank_carries_no_cause",
+    "low_engagement_only_4_payments_in_450_days"
+   ],
+   "proposed_action": "RETRY_SCHEDULED",
+   "deferral_days": 2,
+   "rationale": "reason='payment_failed' with source=bank at payment_authorization is the documented no-cause bank decline, so the specific failure mode is unavailable. Working in favour of a retry: prior_failures_90d 0 and a small amount_inr 497.87 on a UPI rail. Working against a high bucket: successful_payments 4 across tenure_days 450 is thin engagement, and amount_inr 497.87 is roughly 29% above their typical 384.73. prior_contacts_30d 1 at 11 days ago is stale enough that a silent retry is the right first move rather than a message."
+  },
+  "case_0016": {
+   "case_id": "case_0016",
+   "classification": "SOFT_AUTH",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "LOW",
+   "ambiguity_flags": [
+    "contact_fatigue_3_contacts_in_30d_last_one_3_days_ago",
+    "7_failures_in_90d_against_only_3_lifetime_successes_suggests_a_structural_problem_not_a_slow_thumb"
+   ],
+   "proposed_action": "NUDGE",
+   "deferral_days": 3,
+   "rationale": "reason=payment_otp_timeout with source=customer at step=payment_authentication means nothing was ever authorised \u2014 the PNB card was never charged and no re-presentment can manufacture consent; only a fresh authentication link can. The bucket is held down by prior_failures_90d 7 against successful_payments 3 over tenure_days 491: this customer repeatedly reaches the OTP screen and stops, which is a behaviour pattern, not an accident. prior_contacts_30d 3 with days_since_last_contact 3.0 means another immediate message risks burning the channel, so the nudge is spaced. amount_inr 2286.10 is below their typical 2670.82, so size is not the deterrent."
+  },
+  "case_0112": {
+   "case_id": "case_0112",
+   "classification": "SOFT_FUNDS",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "LOW",
+   "ambiguity_flags": [
+    "internally_inconsistent_history_prior_failures_90d_3_but_tenure_days_only_5",
+    "invoice_53_percent_above_this_customer_typical"
+   ],
+   "proposed_action": "RETRY_SCHEDULED",
+   "deferral_days": 27,
+   "rationale": "reason=payment_failed_insufficient_funds with source=customer is an unambiguous balance problem on the ICICI UPI account, and it is timing-dependent rather than terminal. But the surrounding record is weak: tenure_days 5 with successful_payments 1 and prior_failures_90d 3 \u2014 a 90-day failure count that cannot fit a 5-day account, which I am flagging rather than reading past. amount_inr 986.88 against typical 646.78 is a 53% jump, compounding the shortfall. Today being the 1st is the worst point in the Indian salary cycle to re-present, so the retry is pushed to the 28th-onward credit window."
+  },
+  "case_0054": {
+   "case_id": "case_0054",
+   "classification": "SOFT_LIMIT",
+   "classification_confidence": "MEDIUM",
+   "recovery_bucket": "MEDIUM",
+   "ambiguity_flags": [
+    "amount_is_below_this_customer_typical_yet_a_limit_tripped_suggests_a_cumulative_daily_cap_or_a_lowered_upi_autopay_mandate_cap_rather_than_this_single_ticket"
+   ],
+   "proposed_action": "RETRY_SCHEDULED",
+   "deferral_days": 1,
+   "rationale": "reason=payment_limit_exceeded from source=bank at payment_authorization is a cap, not a refusal to pay. The informative detail is that amount_inr 11679.05 is below the customer's typical 1467590 paise (14675.90) \u2014 a per-transaction ceiling that admitted larger tickets before should not bite here, which points at a daily cumulative limit or a reduced INDUSIND UPI AutoPay mandate cap. A next-day re-presentment tests the daily-reset hypothesis at no contact cost. The bucket is held mid-range by tenure_days 35 with successful_payments 2 and prior_contacts_30d 2, not by the decline itself."
+  },
+  "case_0081": {
+   "case_id": "case_0081",
+   "classification": "SOFT_AUTH",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "LOW",
+   "ambiguity_flags": [
+    "deliberate_cancellation_not_a_timeout_may_signal_unwillingness_rather_than_friction",
+    "zero_lifetime_successful_payments_on_a_recurring_mandate"
+   ],
+   "proposed_action": "NUDGE",
+   "deferral_days": 2,
+   "rationale": "reason=payment_cancelled_by_customer at step=payment_authentication with source=customer means the ICICI card was never authorised, so no retry exists that could succeed \u2014 a fresh link is the only mechanism. The bucket is low because this is an active cancellation, not a dropped session, and the record behind it is empty: tenure_days 7, successful_payments 0, prior_failures_90d 1 on a RECURRING arrangement that has never once collected. prior_contacts_30d 2 with days_since_last_contact 2.0 on a week-old account is already a dense touch pattern, so the nudge waits. amount_inr 2109.71 is below the typical 3313.00, so price is not the stated objection."
+  },
+  "case_0026": {
+   "case_id": "case_0026",
+   "classification": "SOFT_TRANSIENT",
+   "classification_confidence": "LOW",
+   "recovery_bucket": "VERY_HIGH",
+   "ambiguity_flags": [
+    "reason_null_bare_bank_decline",
+    "cause_not_supplied_by_issuer_documented_gateway_behaviour"
+   ],
+   "proposed_action": "RETRY_SCHEDULED",
+   "deferral_days": 1,
+   "rationale": "No cause is available \u2014 reason=null, source=bank, step=payment_authorization, description only 'Payment failed' \u2014 so the classification rests on the customer rather than the code, and that customer is the strongest in the batch: tenure_days 1024, successful_payments 39, prior_failures_90d 0, prior_contacts_30d 0. amount_inr 3966.09 is well below their typical 6688.48. Against 39 clean collections one unexplained PNB decline is far likelier to be an issuer-side blip than a change in the customer's position. A one-day gap rather than an instant re-hit keeps the card off issuer velocity heuristics."
+  },
+  "case_0105": {
+   "case_id": "case_0105",
+   "classification": "SOFT_TRANSIENT",
+   "classification_confidence": "LOW",
+   "recovery_bucket": "LOW",
+   "ambiguity_flags": [
+    "generic_reason_payment_failed_from_bank_carries_no_cause",
+    "recurring_arrangement_with_successful_payments_0_means_this_mandate_has_never_collected_and_may_never_have_been_validly_set_up"
+   ],
+   "proposed_action": "RETRY_SCHEDULED",
+   "deferral_days": 2,
+   "rationale": "reason='payment_failed' with source=bank is the documented no-reason issuer decline, so I cannot name the cause. What lowers the bucket is the history, not the code: tenure_days 35, successful_payments 0, prior_failures_90d 1, prior_contacts_30d 2. A RECURRING mandate on a PNB card that has produced zero successful collections is a mandate whose validity is itself in question. amount_inr 9662.29 against typical 14173.60 is below their norm, so size is not the barrier. One scheduled re-presentment is worth it; if it also returns bare, this belongs on a re-authorisation path rather than more retries."
+  },
+  "case_0113": {
+   "case_id": "case_0113",
+   "classification": "SOFT_TRANSIENT",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "VERY_HIGH",
+   "ambiguity_flags": [
+    "mastercard_advice_code_27_prescribes_retry_after_4_days_which_overrides_the_instinct_to_retry_immediately_on_a_gateway_timeout"
+   ],
+   "proposed_action": "RETRY_SCHEDULED",
+   "deferral_days": 4,
+   "rationale": "code=GATEWAY_ERROR, reason=payment_timed_out, source=gateway \u2014 the failure is in the rail, not in the customer or the AXIS card, and it is the class that clears on re-presentment. The customer supports the highest bucket: tenure_days 970, successful_payments 29, prior_failures_90d 0, prior_contacts_30d 0, and amount_inr 3342.92 under their typical 4641.05. The deferral is set by mastercard_advice_code 27, which specifies retry after four days; ignoring it risks a scheme-level penalty on an account that does not need the risk, so the retry is timed to the code rather than fired now."
+  },
+  "case_0013": {
+   "case_id": "case_0013",
+   "classification": "SOFT_LIMIT",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "HIGH",
+   "ambiguity_flags": [
+    "limit_tripped_at_an_amount_below_the_customer_usual_ticket_implying_a_daily_cumulative_cap_or_a_recently_lowered_issuer_limit"
+   ],
+   "proposed_action": "RETRY_SCHEDULED",
+   "deferral_days": 1,
+   "rationale": "reason=payment_limit_exceeded, source=bank, step=payment_authorization on a KOTAK card is a ceiling, and the customer is otherwise excellent: tenure_days 486, successful_payments 16, prior_failures_90d 0, prior_contacts_30d 0. The diagnostic detail is that amount_inr 3820.82 is materially under their typical 5491.86 \u2014 a static per-transaction cap that permitted larger tickets cannot explain this, so the live hypothesis is a daily aggregate already consumed or a freshly reduced limit. A next-day re-presentment resolves the first case without spending any customer contact; a split or alternate instrument is the fallback if it recurs."
+  },
+  "case_0104": {
+   "case_id": "case_0104",
+   "classification": "SOFT_TRANSIENT",
+   "classification_confidence": "LOW",
+   "recovery_bucket": "MEDIUM",
+   "ambiguity_flags": [
+    "generic_reason_payment_failed_from_bank_carries_no_cause",
+    "netbanking_one_time_leaves_no_stored_credential_so_there_is_nothing_to_re_present_server_side_recovery_requires_a_fresh_link"
+   ],
+   "proposed_action": "NUDGE",
+   "deferral_days": 1,
+   "rationale": "reason='payment_failed' from source=bank at payment_authorization names no cause, and for a netbanking ONE_TIME on INDUSIND there is no token or mandate held, so an automated retry is not physically available \u2014 the recovery mechanism is re-presenting a payment link the customer completes in their bank session, which makes this a contact action even though the underlying fault looks transient. tenure_days 17 with successful_payments 2 and prior_failures_90d 1 is a young but not failing relationship; amount_inr 7144.64 is well under their typical 11414.29. prior_contacts_30d 1 at days_since_last_contact 2.0 argues for a one-day space before the link goes out."
+  },
+  "case_0015": {
+   "case_id": "case_0015",
+   "classification": "SOFT_AUTH",
+   "classification_confidence": "MEDIUM",
+   "recovery_bucket": "LOW",
+   "ambiguity_flags": [
+    "reason_null_so_the_class_rests_entirely_on_the_source_customer_plus_step_payment_authentication_pair",
+    "largest_ticket_in_the_batch_on_a_47_day_old_account"
+   ],
+   "proposed_action": "NUDGE",
+   "deferral_days": 1,
+   "rationale": "reason is null and the description is only 'Payment failed', but source=customer at step=payment_authentication is itself the signal: the KOTAK card never reached authorization, so the customer abandoned or failed the OTP/3DS leg and nothing was authorised. That rules out a retry on principle regardless of the missing reason. The bucket is low because amount_inr 18153.22 is the largest here and lands on tenure_days 47 with successful_payments 2 and prior_failures_90d 2; typical 25015.85 means the invoice is not abnormal for them, but the RECURRING arrangement has almost no track record to lean on. A fresh authentication link one day out is the only working lever."
+  },
+  "case_0100": {
+   "case_id": "case_0100",
+   "classification": "SOFT_TRANSIENT",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "VERY_HIGH",
+   "ambiguity_flags": [],
+   "proposed_action": "RETRY_NOW",
+   "deferral_days": 0,
+   "rationale": "code=GATEWAY_ERROR with reason=payment_timed_out and source=gateway places the fault in the rail rather than with the IDFC_FIRST card or the customer, and mastercard_advice_code is null so no scheme-imposed waiting period constrains the re-presentment. The record justifies acting immediately and silently: tenure_days 236, successful_payments 17, prior_failures_90d 1, prior_contacts_30d 0, and amount_inr 3723.66 below their typical 4577.21. Contacting anyone here would spend goodwill on a problem the customer never saw."
+  },
+  "case_0102": {
+   "case_id": "case_0102",
+   "classification": "SOFT_TRANSIENT",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "HIGH",
+   "ambiguity_flags": [
+    "mastercard_advice_code_27_present_on_a_netbanking_payment_where_a_card_scheme_code_should_not_apply_treated_as_a_conservative_timing_hint_not_as_evidence_about_the_instrument",
+    "netbanking_one_time_has_no_stored_credential_so_recovery_needs_a_customer_completed_link"
+   ],
+   "proposed_action": "NUDGE",
+   "deferral_days": 4,
+   "rationale": "reason=gateway_technical_error with source=gateway is a rail fault at the INDUSIND leg, not a customer or instrument decision, and the customer is solid: tenure_days 577, successful_payments 18, prior_failures_90d 0, prior_contacts_30d 0, amount_inr 8332.89 against a typical 7217.38. Two mechanics shape the action rather than the class. First, netbanking ONE_TIME stores nothing re-presentable, so recovery runs through a fresh link the customer completes. Second, mastercard_advice_code 27 asks for a four-day wait; it is anomalous on a netbanking rail, but honouring it costs little on a customer this reliable."
+  },
+  "case_0009": {
+   "case_id": "case_0009",
+   "classification": "SOFT_FUNDS",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "LOW",
+   "ambiguity_flags": [
+    "chronic_pattern_6_failures_in_90d_against_6_lifetime_successes_makes_this_a_standing_affordability_problem_rather_than_a_one_off_timing_miss",
+    "contact_fatigue_2_contacts_in_30d_last_one_5_days_ago"
+   ],
+   "proposed_action": "RETRY_SCHEDULED",
+   "deferral_days": 27,
+   "rationale": "reason=insufficient_funds with source=customer at payment_authorization on the IDFC_FIRST card is a balance shortfall, structurally recoverable. What pulls the bucket down is the shape of the history rather than the code: prior_failures_90d 6 set against successful_payments 6 over tenure_days 562 means roughly half of this relationship's recent attempts fail, and amount_inr 2811.39 is already below their typical 3842.97, so the invoice is not the problem \u2014 the account is. Re-presenting on the 1st is the least likely day of the month to find a credited balance in India, so the attempt is timed into the 28th-onward salary window. prior_contacts_30d 2 argues for a silent retry over another message."
+  },
+  "case_0065": {
+   "case_id": "case_0065",
+   "classification": "SOFT_AUTH",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "LOW",
+   "ambiguity_flags": [
+    "an_otp_step_on_a_recurring_debit_below_the_15000_afa_threshold_is_unexpected_and_hints_the_mandate_is_being_re_authenticated_rather_than_simply_debited",
+    "7_failures_in_90d_with_2_contacts_in_30d_last_one_4_days_ago"
+   ],
+   "proposed_action": "NUDGE",
+   "deferral_days": 2,
+   "rationale": "reason=payment_otp_timeout with source=customer at step=payment_authentication means the IDFC_FIRST card was never authorised, so a re-presentment has nothing to present \u2014 only a fresh link recovers this. Two things hold the bucket at LOW. prior_failures_90d 7 against successful_payments 6 over tenure_days 500 is a customer who repeatedly stalls at the authentication screen, and prior_contacts_30d 2 with days_since_last_contact 4.0 limits how hard the channel can be pushed. amount_inr 4530.98 sits under their typical 7279.64 and under the AFA threshold, which is why an OTP appearing on a RECURRING debit at all is worth flagging."
+  },
+  "case_0041": {
+   "case_id": "case_0041",
+   "classification": "SOFT_TRANSIENT",
+   "classification_confidence": "LOW",
+   "recovery_bucket": "HIGH",
+   "ambiguity_flags": [
+    "reason_null_bare_bank_decline",
+    "cause_not_supplied_by_issuer_documented_gateway_behaviour",
+    "largest_upi_ticket_here_so_a_per_transaction_or_daily_cap_cannot_be_excluded"
+   ],
+   "proposed_action": "RETRY_SCHEDULED",
+   "deferral_days": 1,
+   "rationale": "reason=null with source=bank at payment_authorization on an IDFC_FIRST UPI leg gives no cause to work from. The customer argues for a retry: tenure_days 333, prior_failures_90d 0, prior_contacts_30d 0, successful_payments 8. amount_inr 12899.38 lands almost exactly on their typical 12959.04, which is the useful fact \u2014 it makes both an affordability story and a per-transaction-cap story less plausible, since tickets this size have cleared for this customer before. A one-day re-presentment via a fresh collect request is the cheapest test and needs no contact."
+  },
+  "case_0108": {
+   "case_id": "case_0108",
+   "classification": "SOFT_LIMIT",
+   "classification_confidence": "MEDIUM",
+   "recovery_bucket": "HIGH",
+   "ambiguity_flags": [
+    "on_a_upi_autopay_recurring_debit_a_limit_breach_at_an_amount_below_the_customer_typical_may_be_the_mandate_cap_itself_which_would_make_this_hard_mandate_and_require_re_authorisation_not_a_retry"
+   ],
+   "proposed_action": "RETRY_SCHEDULED",
+   "deferral_days": 1,
+   "rationale": "reason=payment_limit_exceeded, source=bank, step=payment_authorization on an IDFC_FIRST UPI RECURRING debit. Confidence is only MEDIUM because amount_inr 2882.50 is below the customer's typical 3828.44: a genuine per-transaction ceiling that passed larger debits cannot explain this, leaving either a consumed daily aggregate \u2014 recoverable by waiting a day \u2014 or a UPI AutoPay mandate cap set below the current invoice, which would not be recoverable by any retry and would need fresh mandate authorisation. The customer is worth the cheap test first: tenure_days 338, successful_payments 16, prior_failures_90d 1, prior_contacts_30d 0."
+  },
+  "case_0059": {
+   "case_id": "case_0059",
+   "classification": "SOFT_LIMIT",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "HIGH",
+   "ambiguity_flags": [
+    "limit_breached_at_an_amount_below_the_customer_usual_ticket_pointing_at_a_daily_aggregate_rather_than_a_per_transaction_ceiling"
+   ],
+   "proposed_action": "RETRY_SCHEDULED",
+   "deferral_days": 1,
+   "rationale": "reason=payment_limit_exceeded from source=bank at payment_authorization on an AXIS card, with amount_inr 2695.60 sitting under the customer's typical 3664.18 \u2014 the same signature as the other limit cases here, and the strongest available reading is a daily cap already spent elsewhere today rather than a ceiling this invoice exceeds on its own. The relationship is healthy: tenure_days 421, successful_payments 17, prior_failures_90d 1, prior_contacts_30d 0 with days_since_last_contact null. A next-day re-presentment resolves it without any customer contact."
+  },
+  "case_0005": {
+   "case_id": "case_0005",
+   "classification": "SOFT_TRANSIENT",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "HIGH",
+   "ambiguity_flags": [],
+   "proposed_action": "RETRY_NOW",
+   "deferral_days": 0,
+   "rationale": "code=GATEWAY_ERROR, reason=gateway_technical_error, source=gateway \u2014 the ICICI card and the customer are both uninvolved in this failure, and mastercard_advice_code is null so no scheme wait applies. amount_inr 8300.60 is essentially the customer's normal ticket against typical 8594.14, removing size as a factor. tenure_days 164 with successful_payments 10 and prior_failures_90d 2 is good rather than pristine, which is why the bucket is HIGH and not VERY_HIGH, but nothing here calls for a message: prior_contacts_30d 1 at 10 days ago should be preserved for a failure the customer can actually act on."
+  },
+  "case_0046": {
+   "case_id": "case_0046",
+   "classification": "SOFT_AUTH",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "HIGH",
+   "ambiguity_flags": [
+    "cancellation_was_deliberate_rather_than_a_timeout_so_a_genuine_intent_to_defer_the_purchase_cannot_be_excluded"
+   ],
+   "proposed_action": "NUDGE",
+   "deferral_days": 0,
+   "rationale": "reason=payment_cancelled_by_customer at step=payment_authentication with source=customer means the YES_BANK card was never authorised; a retry is structurally incapable of fixing this and only a fresh link can. Unlike the other cancellation in this batch, the record here is strong \u2014 tenure_days 484, successful_payments 18, prior_failures_90d 1 \u2014 and amount_inr 4896.07 is close to their typical 5339.20, so the likeliest story is an interrupted 3DS session rather than a decision not to buy. prior_contacts_30d 0 with days_since_last_contact null means the channel is completely fresh, so the link can go out immediately."
+  },
+  "case_0061": {
+   "case_id": "case_0061",
+   "classification": "SOFT_TRANSIENT",
+   "classification_confidence": "MEDIUM",
+   "recovery_bucket": "MEDIUM",
+   "ambiguity_flags": [
+    "description_and_reason_diverge_payment_declined_by_the_issuing_bank_reads_as_a_deliberate_refusal_while_reason_issuer_not_available_reads_as_an_outage",
+    "thin_history_1_successful_payment_in_42_days"
+   ],
+   "proposed_action": "RETRY_SCHEDULED",
+   "deferral_days": 1,
+   "rationale": "The free-text description says 'Payment declined by the issuing bank' but reason=issuer_not_available. I trust the structured reason: the description field is Razorpay's generic customer-facing string for the whole bank-decline family, while reason is the mapped code, and an unreachable PNB switch is an outage that clears rather than a decision that stands. The bucket is capped at MEDIUM by the customer, not the code \u2014 tenure_days 42 with successful_payments 1 and prior_failures_90d 1 \u2014 though amount_inr 1690.76 well under typical 2438.76 helps. If a scheduled retry returns the same pair, the deliberate-decline reading should be revisited."
+  },
+  "case_0012": {
+   "case_id": "case_0012",
+   "classification": "HARD_INSTRUMENT",
+   "classification_confidence": "MEDIUM",
+   "recovery_bucket": "HIGH",
+   "ambiguity_flags": [
+    "description_actively_contradicts_the_reason_the_text_says_please_retry_after_some_time_while_reason_card_blocked_means_a_retry_can_never_succeed"
+   ],
+   "proposed_action": "REQUEST_INSTRUMENT_UPDATE",
+   "deferral_days": 0,
+   "rationale": "The description 'Payment failed. Please retry after some time.' invites exactly the wrong action; reason=card_blocked from source=bank is the field I trust, because the description is a generic customer-facing string Razorpay attaches broadly while reason carries the issuer's mapped state. A YES_BANK card the issuer has blocked will decline identically forever, so following the description would burn attempts and possibly trip issuer velocity limits. The customer is worth the update ask: tenure_days 541, successful_payments 16, prior_failures_90d 0, prior_contacts_30d 0, and amount_inr 655.14 is below their typical 1010.49, so the sum is trivial next to the relationship."
+  },
+  "case_0068": {
+   "case_id": "case_0068",
+   "classification": "HARD_INSTRUMENT",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "HIGH",
+   "ambiguity_flags": [
+    "description_contradicts_the_reason_by_suggesting_a_later_retry_when_account_closed_is_terminal",
+    "recurring_mandate_is_anchored_to_a_closed_account_and_needs_fresh_authorisation_not_just_a_new_card_number"
+   ],
+   "proposed_action": "REQUEST_INSTRUMENT_UPDATE",
+   "deferral_days": 0,
+   "rationale": "reason=account_closed on the ICICI card is as terminal as this taxonomy gets \u2014 the underlying account no longer exists \u2014 so the description's 'Please retry after some time' is misleading boilerplate and the structured reason wins. Because kind=RECURRING, the standing mandate died with the account and the customer must re-authorise on a new instrument rather than merely restate a card number. Recovery odds are nonetheless good: tenure_days 706, successful_payments 19, prior_failures_90d 0, prior_contacts_30d 0, and amount_inr 10760.73 is in line with their typical 10007.17, so this reads as a banking change rather than a departure."
+  },
+  "case_0048": {
+   "case_id": "case_0048",
+   "classification": "SOFT_TRANSIENT",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "VERY_HIGH",
+   "ambiguity_flags": [
+    "mastercard_advice_code_27_appears_on_a_netbanking_payment_where_a_card_scheme_code_has_no_natural_place_honoured_as_a_timing_hint_only"
+   ],
+   "proposed_action": "RETRY_SCHEDULED",
+   "deferral_days": 4,
+   "rationale": "reason=issuer_not_available with the description 'Issuer or switch is inoperative' is an infrastructure outage at YES_BANK, the clearest transient signature available, and description and reason agree rather than conflict. Unlike the other netbanking case here, kind=RECURRING means an e-mandate exists and can be re-presented without the customer, so an automated retry is genuinely available. Everything else supports the top bucket: tenure_days 755, successful_payments 18, prior_failures_90d 0, prior_contacts_30d 0, and amount_inr 332.96 is small and below their typical 526.23. The four-day gap follows mastercard_advice_code 27."
+  },
+  "case_0027": {
+   "case_id": "case_0027",
+   "classification": "HARD_INSTRUMENT",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "VERY_LOW",
+   "ambiguity_flags": [
+    "description_says_please_retry_after_some_time_while_reason_account_closed_is_terminal",
+    "zero_successful_payments_across_43_days_with_3_failures_and_2_contacts_means_there_is_no_evidence_this_customer_has_ever_paid_and_a_closed_account_may_indicate_disengagement_rather_than_a_banking_change",
+    "borderline_between_one_final_instrument_ask_and_stopping_outright"
+   ],
+   "proposed_action": "REQUEST_INSTRUMENT_UPDATE",
+   "deferral_days": 0,
+   "rationale": "reason=account_closed on the HDFC card is terminal and overrides the description's 'Please retry after some time', so no retry path exists. The instrument fix and the relationship prognosis diverge sharply here: successful_payments 0 over tenure_days 43 with prior_failures_90d 3 and prior_contacts_30d 2 at days_since_last_contact 6.0 describes an account that has never once collected and has already absorbed two contacts. amount_inr 798.86 against typical 1031.38 makes the recoverable sum small relative to the effort. One final update request is defensible because a closed account can be a genuine bank switch; if it goes unanswered this should stop rather than cycle."
+  },
+  "case_0052": {
+   "case_id": "case_0052",
+   "classification": "HARD_RISK",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "VERY_LOW",
+   "ambiguity_flags": [
+    "the_risk_decline_sits_against_an_otherwise_ordinary_customer_record_which_may_mean_a_compromised_instrument_rather_than_a_bad_actor",
+    "no_customer_contact_of_any_kind_is_appropriate_until_a_human_reviews"
+   ],
+   "proposed_action": "ESCALATE_HUMAN",
+   "deferral_days": 0,
+   "rationale": "reason=payment_declined_risk from source=bank at payment_authorization is HDFC asserting a fraud or compromise signal, and the bland description 'Your payment could not be processed' is deliberately uninformative to the payer, as such messages are. Retrying would re-present an instrument the issuer has already flagged, and messaging the customer would confirm to whoever currently holds that card which instrument is being tested \u2014 so both automated levers are off. The customer record \u2014 tenure_days 170, successful_payments 11, prior_failures_90d 2, amount_inr 2300.65 against typical 2632.82 \u2014 is unremarkable, which is itself worth a human's attention: it fits a compromised card on a legitimate account. Human review only."
+  },
+  "case_0071": {
+   "case_id": "case_0071",
+   "classification": "SOFT_AUTH",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "VERY_HIGH",
+   "ambiguity_flags": [
+    "amount_well_below_typical_invoice"
+   ],
+   "proposed_action": "NUDGE",
+   "deferral_days": 0,
+   "rationale": "source=customer at step=payment_authentication with reason=payment_cancelled_by_customer means no authorisation was ever given, so no gateway re-presentment of pay_9b3dc685fb6342 can succeed; only a fresh authenticated link can. The person is a 405-day ICICI card customer with 21 successful_payments, prior_failures_90d=0 and prior_contacts_30d=0, and this 13169.96 INR charge is well under their typical_invoice_paise of 2041462 (20414.62 INR), so this reads as an interrupted session rather than refusal to pay, and they have zero contact fatigue to work against."
+  },
+  "case_0018": {
+   "case_id": "case_0018",
+   "classification": "HARD_MANDATE",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "LOW",
+   "ambiguity_flags": [
+    "description_contradicts_structured_reason",
+    "generic_retry_wording_in_description",
+    "high_prior_failure_count",
+    "contact_fatigue_risk"
+   ],
+   "proposed_action": "REQUEST_INSTRUMENT_UPDATE",
+   "deferral_days": 0,
+   "rationale": "The description 'Payment failed. Please retry after some time.' is Razorpay's generic customer-facing template and invites exactly the wrong action; the structured reason=mandate_revoked is the specific machine-readable field and is corroborated by kind=RECURRING, so I trust reason over description. A revoked e-mandate on this ICICI card cannot be re-presented at any interval \u2014 the standing authorisation is gone and must be re-collected. Odds are poor: despite tenure_days=562 there are only 3 successful_payments against prior_failures_90d=7, and prior_contacts_30d=2 with days_since_last_contact=3.0 means this customer has already been asked twice this month about a 1526.04 INR charge that sits above their typical_invoice_paise of 122510 (1225.10 INR)."
+  },
+  "case_0095": {
+   "case_id": "case_0095",
+   "classification": "SOFT_TRANSIENT",
+   "classification_confidence": "LOW",
+   "recovery_bucket": "MEDIUM",
+   "ambiguity_flags": [
+    "bare_payment_failed_no_issuer_reason",
+    "expected_per_razorpay_bank_decline_docs",
+    "true_cause_could_be_funds_or_issuer_risk"
+   ],
+   "proposed_action": "RETRY_SCHEDULED",
+   "deferral_days": 3,
+   "rationale": "reason=payment_failed with source=bank at step=payment_authorization is an SBI issuer decision with no stated cause, which Razorpay documents as normal for bank declines rather than a malformed payload, so I will not invent a precise cause. The history is middling and does not push the estimate either way hard: tenure_days=387 with 6 successful_payments and prior_failures_90d=2, and 12482.17 INR is close to typical_invoice_paise 1203637 (12036.37 INR), so amount shock is not the driver. prior_contacts_30d=0 leaves room to act, and a single spaced re-presentment is the cheapest way to distinguish a one-off issuer refusal from a standing one before spending a customer contact."
+  },
+  "case_0040": {
+   "case_id": "case_0040",
+   "classification": "SOFT_TRANSIENT",
+   "classification_confidence": "MEDIUM",
+   "recovery_bucket": "VERY_HIGH",
+   "ambiguity_flags": [
+    "bare_payment_failed_no_issuer_reason",
+    "expected_per_razorpay_bank_decline_docs",
+    "amount_18pct_above_typical"
+   ],
+   "proposed_action": "RETRY_SCHEDULED",
+   "deferral_days": 2,
+   "rationale": "An unexplained source=bank refusal at payment_authorization from ICICI against a customer with tenure_days=717, successful_payments=29 and prior_failures_90d=0 is far more likely to be a momentary issuer-side decision than a standing block \u2014 nothing in 717 days of history suggests this card is dead. The 13218.95 INR charge runs about 18 percent over typical_invoice_paise 1122549 (11225.49 INR), which is enough to trip a velocity or amount check without meaning anything permanent. prior_contacts_30d=0, so a silent re-presentment costs nothing in goodwill and should be tried before any message reaches a customer this clean."
+  },
+  "case_0106": {
+   "case_id": "case_0106",
+   "classification": "SOFT_LIMIT",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "MEDIUM",
+   "ambiguity_flags": [
+    "amount_below_typical_so_limit_consumed_by_other_spend",
+    "high_prior_failure_count",
+    "contact_fatigue_risk"
+   ],
+   "proposed_action": "RETRY_SCHEDULED",
+   "deferral_days": 1,
+   "rationale": "reason=daily_limit_exceeded on a UPI rail with source=bank is a ceiling that resets at the day boundary, so a single overnight re-presentment of pay_a78cb495bd8742 is the mechanically correct move and needs no customer involvement. Note the 6492.50 INR request is below this customer's typical_invoice_paise of 933175 (9331.75 INR), meaning the SBI daily cap was consumed by other spending rather than by this invoice being unusually large. I hold the estimate mid-range rather than high because prior_failures_90d=7 against only 8 successful_payments over tenure_days=409 suggests a recurring pattern, and prior_contacts_30d=3 with days_since_last_contact=2.0 means outreach is nearly exhausted if the retry fails."
+  },
+  "case_0089": {
+   "case_id": "case_0089",
+   "classification": "HARD_RISK",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "VERY_LOW",
+   "ambiguity_flags": [
+    "clean_history_conflicts_with_risk_code_but_does_not_override_it",
+    "customer_contact_must_be_suppressed"
+   ],
+   "proposed_action": "ESCALATE_HUMAN",
+   "deferral_days": 0,
+   "rationale": "reason=card_lost_or_stolen from source=bank is an affirmative issuer statement about the instrument, and it is the one case where the customer history must not soften the handling: tenure_days=994, successful_payments=15 and prior_failures_90d=0 describe an excellent account, but if this SBI card is in someone else's hands then a dunning message about the 13661.42 INR charge tells that person which instrument to try next and which merchant is watching. No retry, no message \u2014 a human needs to verify identity out of band before anything is sent. Recovery on this invoice through the existing instrument is effectively nil regardless of the relationship's quality."
+  },
+  "case_0088": {
+   "case_id": "case_0088",
+   "classification": "SOFT_FUNDS",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "HIGH",
+   "ambiguity_flags": [
+    "amount_21pct_above_typical",
+    "retry_date_falls_before_salary_credit_window"
+   ],
+   "proposed_action": "RETRY_SCHEDULED",
+   "deferral_days": 27,
+   "rationale": "reason=insufficient_funds with source=customer at payment_authorization is a balance condition on the SBI UPI account, not an instrument or authorisation problem, so the instrument stays valid and only timing needs fixing. The account is sound \u2014 tenure_days=309, successful_payments=8, prior_failures_90d=1 and prior_contacts_30d=0 \u2014 and the 3954.97 INR debit is about 21 percent over typical_invoice_paise 326567 (3265.67 INR), so a modest shortfall explains it. Today is the 1st, which is the worst point in the Indian pay cycle to re-present: salary credits cluster on the 28th-31st, so the deferral targets the 28th rather than burning an attempt into an empty account now."
+  },
+  "case_0056": {
+   "case_id": "case_0056",
+   "classification": "SOFT_TRANSIENT",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "MEDIUM",
+   "ambiguity_flags": [
+    "thin_history_short_tenure",
+    "already_contacted_twice_in_new_relationship",
+    "advice_code_on_netbanking_rail"
+   ],
+   "proposed_action": "RETRY_SCHEDULED",
+   "deferral_days": 4,
+   "rationale": "reason=issuer_not_available with source=bank is INDUSIND's switch being inoperative, which says nothing about this customer's willingness or ability to pay, and mastercard_advice_code=27 is the issuer's own instruction to re-present after roughly four days \u2014 I follow that rather than picking an interval myself. The mechanics favour recovery, but I hold the estimate mid-range because the relationship is thin: tenure_days=54 with only 1 successful_payment, and prior_contacts_30d=2 with days_since_last_contact=2.0 already on a 54-day-old account. The 2514.21 INR charge is below typical_invoice_paise 379833 (3798.33 INR), so amount is not a factor."
+  },
+  "case_0004": {
+   "case_id": "case_0004",
+   "classification": "SOFT_FUNDS",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "LOW",
+   "ambiguity_flags": [
+    "chronic_failure_pattern_failures_exceed_successes",
+    "amount_30pct_above_typical",
+    "contact_fatigue_risk",
+    "retry_date_falls_before_salary_credit_window"
+   ],
+   "proposed_action": "RETRY_SCHEDULED",
+   "deferral_days": 27,
+   "rationale": "reason=payment_failed_insufficient_funds with source=customer is a balance condition on the HDFC UPI account, and the pattern here is what lowers the estimate rather than the code: prior_failures_90d=6 against only 3 successful_payments over tenure_days=448 means failure is this account's normal state, not an exception. The 7052.29 INR request also runs about 30 percent above typical_invoice_paise 543221 (5432.21 INR), widening the gap that has to be closed. prior_contacts_30d=2 with days_since_last_contact=4.0 means messaging is already saturated, so the only lever left is timing \u2014 re-present after the 28th-31st salary window instead of today, the 1st."
+  },
+  "case_0080": {
+   "case_id": "case_0080",
+   "classification": "SOFT_FUNDS",
+   "classification_confidence": "LOW",
+   "recovery_bucket": "LOW",
+   "ambiguity_flags": [
+    "reason_field_is_null",
+    "no_issuer_reason_available",
+    "source_customer_rules_out_gateway_or_network_cause",
+    "chronic_failure_pattern",
+    "contact_fatigue_risk"
+   ],
+   "proposed_action": "RETRY_SCHEDULED",
+   "deferral_days": 27,
+   "rationale": "reason is null and the description is the bare 'Payment failed', so no cause is stated; what narrows it is source=customer at step=payment_authorization, which excludes gateway, network and issuer-unavailable causes and points at the payer's own PNB account rather than the rails. Against prior_failures_90d=6 with 7 successful_payments over tenure_days=546, a recurring 472.92 INR debit that is well under typical_invoice_paise 77808 (778.08 INR) failing at authorisation reads as an empty account. Confidence is low because a paused UPI mandate would present similarly. prior_contacts_30d=3 with days_since_last_contact=2.0 rules out more outreach, leaving a post-salary-window re-presentment as the only cheap move."
+  },
+  "case_0055": {
+   "case_id": "case_0055",
+   "classification": "SOFT_TRANSIENT",
+   "classification_confidence": "MEDIUM",
+   "recovery_bucket": "VERY_HIGH",
+   "ambiguity_flags": [
+    "reason_field_is_null",
+    "expected_per_razorpay_bank_decline_docs",
+    "classification_leans_on_advice_code_not_reason",
+    "advice_code_on_upi_rail"
+   ],
+   "proposed_action": "RETRY_NOW",
+   "deferral_days": 0,
+   "rationale": "reason is null and source=bank gives no cause, which Razorpay documents as ordinary for issuer declines, so the strongest signal in the payload is mastercard_advice_code=24 \u2014 INDUSIND telling us to re-present after about an hour, which is only issued for conditions the issuer expects to clear almost immediately. The customer supports acting straight away: tenure_days=512 with successful_payments=23, prior_failures_90d=1, prior_contacts_30d=0, and a 1773.77 INR charge comfortably below typical_invoice_paise 284395 (2843.95 INR). Nothing here needs the customer's attention, so the attempt should be spent before any message is."
+  },
+  "case_0047": {
+   "case_id": "case_0047",
+   "classification": "SOFT_LIMIT",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "LOW",
+   "ambiguity_flags": [
+    "amount_below_typical_yet_exceeds_per_transaction_cap",
+    "typical_invoice_baseline_unreliable_at_7_day_tenure",
+    "per_transaction_cap_will_not_clear_on_its_own",
+    "contact_history_predates_stated_tenure"
+   ],
+   "proposed_action": "NUDGE",
+   "deferral_days": 0,
+   "rationale": "reason=payment_limit_exceeded is a per-transaction ceiling, not a daily one, so unlike a daily cap it does not reset overnight \u2014 re-presenting the same 2438.46 INR on the same INDUSIND card would fail identically, and the fix has to come from the customer raising the cap or paying on another instrument. The revealing detail is that 2438.46 INR sits below typical_invoice_paise 400811 (4008.11 INR), so the card itself carries an unusually low limit rather than this invoice being large. Odds are poor: tenure_days=7 with only 2 successful_payments, and days_since_last_contact=5.0 with prior_contacts_30d=1 on an account barely a week old, on a kind=RECURRING mandate that will keep hitting the same wall each cycle."
+  },
+  "case_0008": {
+   "case_id": "case_0008",
+   "classification": "SOFT_TRANSIENT",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "VERY_HIGH",
+   "ambiguity_flags": [
+    "no_advice_code_to_time_the_retry"
+   ],
+   "proposed_action": "RETRY_NOW",
+   "deferral_days": 0,
+   "rationale": "reason=issuer_not_available with source=bank at payment_authorization is KOTAK's switch being down; it is infrastructure, not a decision about this payer, and such outages typically clear in minutes. The customer is the best in this batch \u2014 tenure_days=791, successful_payments=39, prior_failures_90d=0, prior_contacts_30d=0 \u2014 and the 4511.24 INR charge is under typical_invoice_paise 589000 (5890.00 INR), so there is no amount or behaviour signal arguing against an immediate re-presentment. With no mastercard_advice_code to specify an interval, and no customer action required, spending an attempt now is strictly cheaper than any message."
+  },
+  "case_0090": {
+   "case_id": "case_0090",
+   "classification": "SOFT_AUTH",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "LOW",
+   "ambiguity_flags": [
+    "amount_58pct_above_typical",
+    "recurring_cancellation_may_signal_intent_to_churn",
+    "new_account_thin_history",
+    "contact_fatigue_risk"
+   ],
+   "proposed_action": "NUDGE",
+   "deferral_days": 0,
+   "rationale": "source=customer at step=payment_authentication with reason=payment_cancelled_by_customer means the 3DS step was actively abandoned on this AXIS card, so nothing was authorised and re-presentment is impossible \u2014 only a fresh link would help. But the surrounding facts argue this was deliberate rather than accidental: the 2087.61 INR charge is roughly 58 percent above typical_invoice_paise 132394 (1323.94 INR), it is a kind=RECURRING debit, and the account is 18 days old with 2 successful_payments and prior_failures_90d=2. A customer who cancels at the OTP screen on a larger-than-usual recurring charge on a three-week-old subscription may be withdrawing from it; prior_contacts_30d=1 at days_since_last_contact=3.0 leaves room for one more touch, but not many."
+  },
+  "case_0083": {
+   "case_id": "case_0083",
+   "classification": "SOFT_AUTH",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "VERY_HIGH",
+   "ambiguity_flags": [
+    "timeout_rather_than_active_cancellation"
+   ],
+   "proposed_action": "NUDGE",
+   "deferral_days": 0,
+   "rationale": "reason=payment_otp_timeout at step=payment_authentication with source=customer is a session that expired, not a refusal \u2014 importantly it is a timeout rather than an active cancel, which carries no signal of unwillingness at all. No authorisation exists for pay_1e3afee770d347, so a fresh link is the only mechanism that can work. Everything else says this recovers on the first attempt: tenure_days=1024, successful_payments=32, prior_failures_90d=0, prior_contacts_30d=0, and the 486.24 INR charge is almost exactly this AXIS customer's typical_invoice_paise of 47976 (479.76 INR), so there is no amount shock to explain the drop-off."
+  },
+  "case_0109": {
+   "case_id": "case_0109",
+   "classification": "SOFT_TRANSIENT",
+   "classification_confidence": "LOW",
+   "recovery_bucket": "HIGH",
+   "ambiguity_flags": [
+    "bare_payment_failed_no_issuer_reason",
+    "expected_per_razorpay_bank_decline_docs",
+    "amount_55pct_above_typical",
+    "true_cause_could_be_funds"
+   ],
+   "proposed_action": "RETRY_SCHEDULED",
+   "deferral_days": 2,
+   "rationale": "reason=payment_failed from source=bank at payment_authorization gives no cause, as Razorpay notes is usual for YES_BANK-style issuer declines, so I decline to name one. The one substantive hint is size: 568.34 INR against typical_invoice_paise 36563 (365.63 INR) is roughly 55 percent above this customer's norm, which is the sort of deviation that trips an issuer check or outruns a small balance. The relationship is healthy though \u2014 tenure_days=163 with successful_payments=7 and prior_failures_90d=1 \u2014 and days_since_last_contact=12.0 means the single prior contact is stale rather than fatiguing, so a spaced re-presentment is worth spending before any outreach."
+  },
+  "case_0042": {
+   "case_id": "case_0042",
+   "classification": "SOFT_TRANSIENT",
+   "classification_confidence": "LOW",
+   "recovery_bucket": "LOW",
+   "ambiguity_flags": [
+    "bare_payment_failed_no_issuer_reason",
+    "expected_per_razorpay_bank_decline_docs",
+    "amount_52pct_above_typical",
+    "new_account_thin_history",
+    "true_cause_could_be_funds"
+   ],
+   "proposed_action": "RETRY_SCHEDULED",
+   "deferral_days": 3,
+   "rationale": "An ICICI decline with source=bank and reason=payment_failed states no cause, which is expected rather than malformed, so the estimate has to come from context \u2014 and the context is weak. tenure_days=53 with only 2 successful_payments and prior_failures_90d=1 gives almost no track record to lean on, and the 626.68 INR charge is about 52 percent above typical_invoice_paise 41272 (412.72 INR), so this is an unusually large ask for a new account. prior_contacts_30d=2 with days_since_last_contact=9.0 means two messages have already gone out in under two months of relationship, so a silent spaced re-presentment is the right next step rather than a third."
+  },
+  "case_0017": {
+   "case_id": "case_0017",
+   "classification": "SOFT_AUTH",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "LOW",
+   "ambiguity_flags": [
+    "repeated_authentication_abandonment_may_indicate_unwillingness",
+    "contact_fatigue_near_exhausted",
+    "amount_37pct_above_typical"
+   ],
+   "proposed_action": "NUDGE",
+   "deferral_days": 0,
+   "rationale": "source=customer at payment_authentication with reason=payment_cancelled_by_customer means no authorisation was captured on this PNB card, so mechanically only a fresh link can recover pay_c14147aae12349. The concern is that this looks habitual rather than accidental: prior_failures_90d=5 alongside 8 successful_payments over tenure_days=497 is a customer who now fails more often than not, and the 420.96 INR charge sits about 37 percent above typical_invoice_paise 30793 (307.93 INR). prior_contacts_30d=3 with days_since_last_contact=5.0 means outreach is close to exhausted, so I propose the fresh link knowing it may be the last message this account should receive on this invoice."
+  },
+  "case_0003": {
+   "case_id": "case_0003",
+   "classification": "SOFT_LIMIT",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "VERY_HIGH",
+   "ambiguity_flags": [
+    "amount_23pct_above_typical",
+    "daily_cap_consumed_by_unrelated_spend"
+   ],
+   "proposed_action": "RETRY_SCHEDULED",
+   "deferral_days": 1,
+   "rationale": "reason=daily_limit_exceeded with source=bank on the SBI UPI rail is a ceiling that resets at midnight, so a next-day re-presentment of pay_c33dd1e8fa8f45 fixes it without involving the customer at all. The 17083.03 INR request is only about 23 percent over typical_invoice_paise 1385005 (13850.05 INR) and well inside normal UPI caps, so the day's limit was consumed by unrelated spend rather than by this invoice being outsized. The account gives every reason for confidence: tenure_days=400, successful_payments=20, prior_failures_90d=0 and prior_contacts_30d=0, meaning this is a first stumble by a reliable payer and no goodwill has been spent."
+  },
+  "case_0092": {
+   "case_id": "case_0092",
+   "classification": "SOFT_TRANSIENT",
+   "classification_confidence": "MEDIUM",
+   "recovery_bucket": "VERY_HIGH",
+   "ambiguity_flags": [
+    "bare_payment_failed_no_issuer_reason",
+    "expected_per_razorpay_bank_decline_docs",
+    "recurring_mandate_health_not_confirmed_by_payload"
+   ],
+   "proposed_action": "RETRY_SCHEDULED",
+   "deferral_days": 2,
+   "rationale": "KOTAK returned source=bank with reason=payment_failed and no cause, which is documented behaviour for issuer declines, so I am reading the history instead: tenure_days=555, successful_payments=20, prior_failures_90d=0 and prior_contacts_30d=0 describe a mandate that has been working cleanly for a year and a half. The 1778.25 INR debit is essentially identical to typical_invoice_paise 173990 (1739.90 INR), so nothing about this cycle is unusual and there is no amount-driven explanation. A one-off issuer refusal on an otherwise flawless kind=RECURRING series is far more likely than a silent mandate problem, and a spaced re-presentment tests that at no cost to the customer."
+  },
+  "case_0064": {
+   "case_id": "case_0064",
+   "classification": "HARD_INSTRUMENT",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "HIGH",
+   "ambiguity_flags": [
+    "card_blocked_could_be_risk_adjacent_but_no_lost_or_stolen_code_given",
+    "no_fraud_signal_in_payload"
+   ],
+   "proposed_action": "REQUEST_INSTRUMENT_UPDATE",
+   "deferral_days": 0,
+   "rationale": "reason=card_blocked from source=bank is YES_BANK declaring this instrument unusable, a standing state that no re-presentment interval will change, so the invoice can only move on a different card. I classify this as an instrument problem rather than a risk one because the payload carries no lost-or-stolen code and mastercard_advice_code is null \u2014 a block can be issuer-initiated for many benign reasons \u2014 though if a fraud signal surfaced later the no-contact rule would override this. Recovery odds are good despite the hard code: tenure_days=875 with successful_payments=21, prior_failures_90d=1 and prior_contacts_30d=0 is a loyal payer with no message fatigue, and 3748.69 INR against typical_invoice_paise 308768 (3087.68 INR) is a routine ask for them."
+  },
+  "case_0066": {
+   "case_id": "case_0066",
+   "classification": "SOFT_TRANSIENT",
+   "classification_confidence": "LOW",
+   "recovery_bucket": "HIGH",
+   "ambiguity_flags": [
+    "reason_field_is_null",
+    "no_issuer_reason_available",
+    "expected_per_razorpay_bank_decline_docs",
+    "large_absolute_amount_may_trip_issuer_checks",
+    "recurring_mandate_health_not_confirmed"
+   ],
+   "proposed_action": "RETRY_SCHEDULED",
+   "deferral_days": 2,
+   "rationale": "reason is null with source=bank, so PNB has stated nothing \u2014 normal for issuer declines and not a data defect \u2014 and confidence is correspondingly low since an unexplained authorization refusal on a kind=RECURRING debit could equally be a mandate or balance issue. What tilts me toward a one-off is the record: tenure_days=567, successful_payments=17, prior_failures_90d=1 and prior_contacts_30d=0, with the 15427.66 INR debit actually below typical_invoice_paise 1772995 (17729.95 INR), so this cycle is smaller than usual and cannot be blamed on amount growth. A spaced re-presentment costs nothing and will separate a transient refusal from a standing one."
+  },
+  "case_0035": {
+   "case_id": "case_0035",
+   "classification": "HARD_INSTRUMENT",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "HIGH",
+   "ambiguity_flags": [
+    "recurring_mandate_dies_with_the_closed_account_so_re_authorisation_also_needed"
+   ],
+   "proposed_action": "REQUEST_INSTRUMENT_UPDATE",
+   "deferral_days": 0,
+   "rationale": "reason=account_closed from source=bank is terminal for this HDFC instrument \u2014 the underlying account no longer exists, so no interval or amount change makes pay_27dc478fe4714f collectable, and because kind=RECURRING the mandate riding on that account is gone too, meaning the customer must supply a new instrument and re-authorise rather than just update a card number. The relationship itself looks intact and worth the ask: tenure_days=559 with successful_payments=17, prior_failures_90d=0 and prior_contacts_30d=0 means this is the first disruption in the series and no goodwill has been spent, and 11801.80 INR against typical_invoice_paise 1075818 (10758.18 INR) is a normal-sized cycle for them."
+  },
+  "case_0039": {
+   "case_id": "case_0039",
+   "classification": "HARD_INSTRUMENT",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "LOW",
+   "ambiguity_flags": [
+    "prior_failures_likely_all_the_same_expired_card",
+    "three_prior_contacts_already_unheeded",
+    "contact_fatigue_near_exhausted"
+   ],
+   "proposed_action": "REQUEST_INSTRUMENT_UPDATE",
+   "deferral_days": 0,
+   "rationale": "reason=payment_failed_card_expired is a fixed property of this INDUSIND card, so re-presentment is pointless at any interval and only a new instrument can settle the 4744.07 INR invoice. What lowers the estimate is that this has almost certainly been asked already: prior_failures_90d=6 against 5 successful_payments over tenure_days=562 is consistent with the same expired card failing repeatedly, and prior_contacts_30d=3 with days_since_last_contact=5.0 means three update requests have gone out this month without the customer acting. The amount is unremarkable at 4744.07 INR versus typical_invoice_paise 432925 (4329.25 INR), so indifference rather than cost is the obstacle, and further identical messaging is unlikely to change it."
+  },
+  "case_0074": {
+   "case_id": "case_0074",
+   "classification": "SOFT_FUNDS",
+   "classification_confidence": "LOW",
+   "recovery_bucket": "LOW",
+   "ambiguity_flags": [
+    "reason_field_is_null",
+    "no_issuer_reason_available",
+    "source_customer_rules_out_gateway_or_network_cause",
+    "amount_18pct_above_typical",
+    "new_account_thin_history",
+    "retry_date_falls_before_salary_credit_window"
+   ],
+   "proposed_action": "RETRY_SCHEDULED",
+   "deferral_days": 27,
+   "rationale": "reason is null behind a bare 'Payment failed', but source=customer at step=payment_authorization is doing real work here: it excludes gateway, network and issuer-availability causes and locates the failure in the payer's own PNB account, which on a UPI rail most often means balance. Confidence stays low because the payload never says so. The estimate is poor regardless of cause: tenure_days=47 with only 2 successful_payments against prior_failures_90d=3, and a 13872.63 INR request about 18 percent above typical_invoice_paise 1171129 (11711.29 INR) is a large sum for a seven-week-old account. prior_contacts_30d=2 at days_since_last_contact=4.0 leaves timing as the main lever \u2014 re-present after the 28th-31st credit window rather than today, the 1st."
+  },
+  "case_0050": {
+   "case_id": "case_0050",
+   "classification": "SOFT_FUNDS",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "HIGH",
+   "ambiguity_flags": [
+    "amount_below_typical_suggests_short_lived_balance_trough",
+    "shorter_deferral_chosen_over_salary_window_anchor"
+   ],
+   "proposed_action": "RETRY_SCHEDULED",
+   "deferral_days": 5,
+   "rationale": "reason=insufficient_funds with source=customer is a balance state on the PNB UPI account, leaving the instrument and authorisation intact. The distinguishing detail is that 752.53 INR is well below this customer's typical_invoice_paise of 99051 (990.51 INR) \u2014 they routinely clear larger debits, so this is a brief trough rather than a structural shortfall, which is why I use a short deferral instead of anchoring all the way to the 28th-31st salary window. The account supports that read: successful_payments=10 in only tenure_days=101 is a high payment cadence with prior_failures_90d=0, and days_since_last_contact=21.0 means the 2 prior contacts are stale enough not to constrain a later message if the retry fails."
+  },
+  "case_0114": {
+   "case_id": "case_0114",
+   "classification": "SOFT_AUTH",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "VERY_HIGH",
+   "ambiguity_flags": [
+    "amount_well_below_typical_invoice"
+   ],
+   "proposed_action": "NUDGE",
+   "deferral_days": 0,
+   "rationale": "source=customer at step=payment_authentication with reason=payment_cancelled_by_customer means the 3DS challenge on this PNB card was never completed, so no authorisation exists to re-present and only a fresh link can recover pay_10aac2ce2d0c4f. The account is the longest-standing in this batch at tenure_days=1318 with successful_payments=17, prior_failures_90d=0 and prior_contacts_30d=0, so there is no history of abandonment to suggest intent. The 3870.47 INR charge is also well under typical_invoice_paise 626741 (6267.41 INR), removing the usual reason a customer backs out at the OTP screen and leaving an interrupted session as the likeliest story."
+  },
+  "case_0058": {
+   "case_id": "case_0058",
+   "classification": "SOFT_AUTH",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "HIGH",
+   "ambiguity_flags": [
+    "timeout_rather_than_active_cancellation",
+    "amount_26pct_above_typical",
+    "short_tenure_offset_by_high_payment_cadence"
+   ],
+   "proposed_action": "NUDGE",
+   "deferral_days": 0,
+   "rationale": "reason=payment_otp_timeout at step=payment_authentication with source=customer is an expired session on this BOB card rather than a refusal, so no authorisation was captured and re-presentment cannot help \u2014 a fresh link is the only route. The account is young at tenure_days=67 but unusually active, with successful_payments=8 in that window, which is a strong engagement signal that offsets the thin tenure, and prior_contacts_30d=0 means a message here is the first this month. prior_failures_90d=2 and a 1195.43 INR charge about 26 percent above typical_invoice_paise 94802 (948.02 INR) keep this just short of the cleanest cases."
+  },
+  "case_0111": {
+   "case_id": "case_0111",
+   "classification": "SOFT_TRANSIENT",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "VERY_HIGH",
+   "ambiguity_flags": [
+    "mastercard_advice_code_present_on_upi_instrument",
+    "amount_well_below_typical_invoice"
+   ],
+   "proposed_action": "RETRY_SCHEDULED",
+   "deferral_days": 2,
+   "rationale": "reason=issuer_not_available with source=bank is ICICI's switch being inoperative \u2014 infrastructure, not a judgement about this payer \u2014 and mastercard_advice_code=26 is the issuer's own instruction to re-present after roughly two days, which I follow rather than choosing an interval myself; I note only that a Mastercard advice code arriving on instrument_type=upi is slightly odd and does not change the reading. The customer argues for a high estimate: tenure_days=726 with successful_payments=22, prior_failures_90d=1 and prior_contacts_30d=0, and the 10625.85 INR charge is well below typical_invoice_paise 1645767 (16457.67 INR), so nothing about this attempt was unusual for them."
+  },
+  "case_0006": {
+   "case_id": "case_0006",
+   "classification": "SOFT_FUNDS",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "VERY_HIGH",
+   "ambiguity_flags": [
+    "issuer_advice_code_interval_conflicts_with_salary_window_heuristic",
+    "advice_code_deferred_to_over_generic_heuristic"
+   ],
+   "proposed_action": "RETRY_SCHEDULED",
+   "deferral_days": 2,
+   "rationale": "reason=insufficient_funds with source=customer is a balance condition, so the KOTAK card and its mandate remain valid and only timing is at issue. Two timing signals disagree: the generic Indian pay-cycle heuristic would push past the 28th-31st window, while mastercard_advice_code=26 is this issuer's specific instruction to re-present after about two days. I take the advice code, because it reflects what the issuer actually knows about this account rather than a population average. The customer makes the short interval safe to spend: tenure_days=1083 with successful_payments=38, prior_failures_90d=0 and prior_contacts_30d=0, and 962.07 INR against typical_invoice_paise 84299 (842.99 INR) is a routine cycle for a payer who has never failed before."
+  },
+  "case_0022": {
+   "case_id": "case_0022",
+   "classification": "SOFT_TRANSIENT",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "MEDIUM",
+   "ambiguity_flags": [
+    "chronic_failure_pattern_inconsistent_with_isolated_transient",
+    "contact_fatigue_3_contacts_30d_last_contact_1_day_ago",
+    "failures_90d_equals_lifetime_successes"
+   ],
+   "proposed_action": "RETRY_NOW",
+   "deferral_days": 0,
+   "rationale": "source=gateway with step=payment_authorization and reason=gateway_technical_error is a rail-side failure on the ICICI UPI leg, not an issuer decision about this customer; the \u20b93696.96 charge is 1.06x their typical_invoice_paise of 348188 so size is not the trigger. Retry costs no customer attention, which matters because prior_contacts_30d=3 with days_since_last_contact=1.0 leaves no room to message. Tempering the bucket: prior_failures_90d=6 against only 6 successful_payments over tenure_days=518 means this rail fails about as often as it works, so a single clean retry is less likely to hold than the code alone suggests."
+  },
+  "case_0107": {
+   "case_id": "case_0107",
+   "classification": "SOFT_TRANSIENT",
+   "classification_confidence": "LOW",
+   "recovery_bucket": "LOW",
+   "ambiguity_flags": [
+    "bare_bank_decline_no_specific_reason_expected_per_razorpay_docs",
+    "could_equally_be_funds_or_limit_or_instrument",
+    "amount_1.49x_typical",
+    "thin_history_tenure_45_days"
+   ],
+   "proposed_action": "RETRY_SCHEDULED",
+   "deferral_days": 3,
+   "rationale": "reason=payment_failed with source=bank and description \"Payment failed\" carries no cause: BOB declined and gave nothing back, which Razorpay documents as normal for issuer declines. Nothing in the payload distinguishes a soft from a hard cause, so the classification is a default rather than a read. What does inform the bucket is the history: tenure_days=45 with successful_payments=2 and prior_failures_90d=3 means this account has failed more often than it has paid, and \u20b91023.47 against typical_invoice_paise=68758 (\u20b9687.58) is 1.49x their norm, which raises a funds or per-transaction ceiling as an unstated alternative. prior_contacts_30d=1 at days_since_last_contact=5.0 leaves contact headroom if the retry fails."
+  },
+  "case_0110": {
+   "case_id": "case_0110",
+   "classification": "SOFT_AUTH",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "VERY_HIGH",
+   "ambiguity_flags": [
+    "deliberate_cancellation_rather_than_timeout"
+   ],
+   "proposed_action": "NUDGE",
+   "deferral_days": 0,
+   "rationale": "reason=payment_cancelled_by_customer at step=payment_authentication with source=customer means the HDFC 3DS screen was dismissed before any authorisation existed; there is no approved transaction for a retry to re-present, so only a fresh link can complete it. The history is as strong as this dataset gets: tenure_days=1198, successful_payments=28, prior_failures_90d=0 and prior_contacts_30d=0 with days_since_last_contact=null, so the first outreach in the relationship lands on an uncontacted, reliable payer. \u20b919029.40 against typical_invoice_paise=2033471 (\u20b920334.71) is 0.94x their normal ticket, so the size did not scare them off \u2014 a mid-checkout interruption is the likelier story than a decision to stop paying."
+  },
+  "case_0094": {
+   "case_id": "case_0094",
+   "classification": "HARD_INSTRUMENT",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "MEDIUM",
+   "ambiguity_flags": [
+    "contact_fatigue_2_contacts_30d_last_contact_1_day_ago",
+    "5_prior_failures_suggest_repeated_attempts_on_an_already_dead_card"
+   ],
+   "proposed_action": "REQUEST_INSTRUMENT_UPDATE",
+   "deferral_days": 0,
+   "rationale": "reason=payment_failed_card_expired is a deterministic fact about the PNB card, not a state that changes with time, so every further attempt on this token fails identically \u2014 prior_failures_90d=5 against successful_payments=5 reads as exactly that, the same expired credential re-presented on a RECURRING schedule. tenure_days=632 says the relationship is real and worth a card-update ask, and \u20b99224.01 against typical_invoice_paise=859623 (\u20b98596.23) is 1.07x normal, so the invoice itself is unremarkable. The bucket is held at MEDIUM rather than higher because recovery requires the customer to act and prior_contacts_30d=2 with days_since_last_contact=1.0 means they were messaged yesterday; a third touch this week may be tuned out."
+  },
+  "case_0014": {
+   "case_id": "case_0014",
+   "classification": "SOFT_AUTH",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "VERY_HIGH",
+   "ambiguity_flags": [],
+   "proposed_action": "NUDGE",
+   "deferral_days": 0,
+   "rationale": "reason=payment_otp_timeout at step=payment_authentication with source=customer means the KOTAK OTP window lapsed \u2014 the customer never authorised anything, so re-presenting the same attempt has nothing to re-present and only a fresh link recovers it. Every history signal is clean: tenure_days=1172, successful_payments=12, prior_failures_90d=0, prior_contacts_30d=0 and days_since_last_contact=null, so this is a first stumble by a three-year customer who has never needed chasing. \u20b92174.56 against typical_invoice_paise=316522 (\u20b93165.22) is 0.69x their usual, well inside what they routinely pay, which points at a missed SMS rather than reluctance."
+  },
+  "case_0011": {
+   "case_id": "case_0011",
+   "classification": "SOFT_TRANSIENT",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "HIGH",
+   "ambiguity_flags": [
+    "reason_null",
+    "mastercard_advice_code_24_present_on_a_netbanking_payment_rail_mismatch"
+   ],
+   "proposed_action": "RETRY_NOW",
+   "deferral_days": 0,
+   "rationale": "code=GATEWAY_ERROR with source=gateway at step=payment_authorization puts the failure on the PNB netbanking connection rather than on a decision about this customer, and mastercard_advice_code=24 is the issuer-side 'retry after roughly an hour' signal \u2014 both point the same way, which is why reason=null does not weaken the call much. The advice code sitting on instrument_type=netbanking is odd, since Mastercard merchant advice codes belong to card rails; I read it as pass-through noise and lean on the source/step triple instead. History supports a strong bucket: successful_payments=25 over tenure_days=816 with prior_failures_90d=1 and prior_contacts_30d=0, and \u20b93590.96 against typical_invoice_paise=317839 (\u20b93178.39) is 1.13x normal. The one-hour delay the advice code implies is below the resolution of deferral_days, so a prompt retry is the practical reading."
+  },
+  "case_0096": {
+   "case_id": "case_0096",
+   "classification": "SOFT_TRANSIENT",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "VERY_HIGH",
+   "ambiguity_flags": [
+    "amount_1.61x_typical_invoice"
+   ],
+   "proposed_action": "RETRY_NOW",
+   "deferral_days": 0,
+   "rationale": "reason=gateway_technical_error with source=gateway at step=payment_authorization is a failure on the SBI UPI leg, and nothing about this customer is implicated: prior_failures_90d=0 and prior_contacts_30d=0 against successful_payments=24 over tenure_days=449. \u20b92098.34 is 1.61x typical_invoice_paise=130534 (\u20b91305.34), the only unusual number in the payload, but a limit or funds decline would have come back from source=bank with a matching reason, not as a gateway technical error. A clean, uncontacted payer with a rail-side failure is close to the best recovery profile available, and a prompt retry spends nothing."
+  },
+  "case_0025": {
+   "case_id": "case_0025",
+   "classification": "HARD_INSTRUMENT",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "LOW",
+   "ambiguity_flags": [
+    "3_failures_inside_a_20_day_tenure_high_failure_density",
+    "contact_fatigue_2_contacts_30d",
+    "closed_account_this_early_may_signal_abandonment_rather_than_bank_switch"
+   ],
+   "proposed_action": "REQUEST_INSTRUMENT_UPDATE",
+   "deferral_days": 0,
+   "rationale": "reason=account_closed from source=bank at step=payment_authorization is terminal for this HDFC card \u2014 the funding account no longer exists, so no retry schedule can reach it and only a new instrument can. The bucket is low because the relationship has barely started: tenure_days=20 with successful_payments=2 and prior_failures_90d=3, meaning three of the failures happened inside the account's entire twenty-day life, and prior_contacts_30d=2 at days_since_last_contact=5.0 means two of the few available touches are already spent. \u20b94534.57 against typical_invoice_paise=355057 (\u20b93550.57) is 1.28x their short norm. A twenty-day-old subscriber whose funding account closed is as likely to be walking away as switching banks, so the update request should go out once and not be repeated hard."
+  },
+  "case_0119": {
+   "case_id": "case_0119",
+   "classification": "SOFT_TRANSIENT",
+   "classification_confidence": "LOW",
+   "recovery_bucket": "LOW",
+   "ambiguity_flags": [
+    "reason_null_bare_bank_decline_expected_per_razorpay_docs",
+    "cause_unknowable_from_payload",
+    "contacts_30d_exceed_failures_90d_possible_over_messaging"
+   ],
+   "proposed_action": "RETRY_SCHEDULED",
+   "deferral_days": 2,
+   "rationale": "source=bank at step=payment_authorization with reason=null and description \"Payment failed\" is ICICI declining without stating why, which Razorpay documents as ordinary issuer behaviour rather than a malformed payload; there is genuinely no basis in this record to name funds, limit, or instrument, so the soft default is a working assumption and not a finding. \u20b93942.01 against typical_invoice_paise=447609 (\u20b94476.09) is 0.88x their norm, so the amount is not the obvious trigger. The bucket sits low on history alone: tenure_days=29 with successful_payments=2. Worth noting prior_contacts_30d=2 against prior_failures_90d=1 \u2014 this 29-day-old account has been messaged more times than it has failed, so a short unattended retry is preferable to another touch."
+  },
+  "case_0075": {
+   "case_id": "case_0075",
+   "classification": "SOFT_LIMIT",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "VERY_HIGH",
+   "ambiguity_flags": [
+    "per_transaction_cap_below_1000_inr_is_unusually_low_for_a_card",
+    "identical_retry_will_re_fail_needs_split_or_alternate_instrument"
+   ],
+   "proposed_action": "NUDGE",
+   "deferral_days": 0,
+   "rationale": "reason=payment_limit_exceeded from source=bank describes a per-transaction ceiling on the AXIS card, and the amount corroborates it: \u20b9931.77 against typical_invoice_paise=58221 (\u20b9582.21) is 1.60x this customer's normal ticket, so the invoice grew past a cap that comfortably cleared 38 previous times. A per-transaction ceiling does not reset with the clock the way a daily cap does, so an unchanged retry re-fails and the recovery has to come from a split charge or an alternate instrument \u2014 which needs the customer, hence a nudge rather than a scheduled retry. They can absorb one: successful_payments=38 over tenure_days=518 with prior_failures_90d=0 and prior_contacts_30d=0. I do flag that a sub-\u20b91000 per-transaction cap is a low figure for a card and may be a mislabelled velocity control; the structured reason is still the better evidence than my prior about typical limits."
+  },
+  "case_0044": {
+   "case_id": "case_0044",
+   "classification": "SOFT_TRANSIENT",
+   "classification_confidence": "LOW",
+   "recovery_bucket": "VERY_LOW",
+   "ambiguity_flags": [
+    "reason_null_bare_bank_decline_expected_per_razorpay_docs",
+    "3_failures_inside_16_day_tenure",
+    "only_1_lifetime_success_on_a_recurring_plan"
+   ],
+   "proposed_action": "RETRY_SCHEDULED",
+   "deferral_days": 3,
+   "rationale": "source=bank at step=payment_authorization with reason=null gives ICICI's decline no stated cause, which is expected rather than malformed, so the soft classification is the least-committal reading and not a diagnosis. The history is what drives the bucket down hard: tenure_days=16 with successful_payments=1 and prior_failures_90d=3, so this netbanking mandate has failed three times and worked once in the sixteen days it has existed. \u20b94127.63 is only 0.70x typical_invoice_paise=586968 (\u20b95869.68), so the amount is not stretching them \u2014 the rail or the account is simply not working. prior_contacts_30d=1 at days_since_last_contact=10.0 leaves room for outreach, but on a RECURRING plan this young I would spend a quiet retry first before burning attention on a customer who has barely transacted."
+  },
+  "case_0031": {
+   "case_id": "case_0031",
+   "classification": "SOFT_AUTH",
+   "classification_confidence": "MEDIUM",
+   "recovery_bucket": "HIGH",
+   "ambiguity_flags": [
+    "reason_null_classification_inferred_from_source_step_pair_not_from_reason"
+   ],
+   "proposed_action": "NUDGE",
+   "deferral_days": 0,
+   "rationale": "reason=null, so the call rests entirely on step=payment_authentication with source=customer: the PNB payment died on the authentication screen and the attribution is to the person, which is the signature of an abandoned OTP or 3DS flow rather than an issuer decision. Nothing was authorised, so a retry has nothing to re-present \u2014 this is why the null reason lowers confidence but does not change the action. The customer is worth the touch: successful_payments=17 over tenure_days=439 with prior_failures_90d=1 and prior_contacts_30d=0, and at \u20b9302.71 against typical_invoice_paise=33089 (\u20b9330.89), 0.91x normal, the sum is trivial for them, so a single fresh link should close it."
+  },
+  "case_0072": {
+   "case_id": "case_0072",
+   "classification": "SOFT_FUNDS",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "HIGH",
+   "ambiguity_flags": [
+    "declined_on_0.66x_of_typical_ticket_suggests_a_thin_balance_not_an_oversized_invoice",
+    "failure_dated_immediately_after_the_28th_31st_salary_window"
+   ],
+   "proposed_action": "RETRY_SCHEDULED",
+   "deferral_days": 1,
+   "rationale": "reason=insufficient_funds with source=customer at step=payment_authorization is IDFC_FIRST reporting a balance shortfall, and mastercard_advice_code=25 independently sets a retry-after-24-hours instruction, so the issuer itself is calling this temporary. The history carries the bucket: successful_payments=11 over tenure_days=500 with prior_failures_90d=1 and prior_contacts_30d=0, an established payer on their first real stumble. Two things temper it \u2014 \u20b9651.47 is only 0.66x typical_invoice_paise=99399 (\u20b9993.99), so they were short on a below-average charge, and the failure falls on the 1st, just past the 28th-31st salary cluster, meaning the credit has already landed and been spent rather than being about to arrive. A one-day retry honours the advice code; if it fails again the meaningful next window is the 28th, not another few days."
+  },
+  "case_0091": {
+   "case_id": "case_0091",
+   "classification": "SOFT_AUTH",
+   "classification_confidence": "MEDIUM",
+   "recovery_bucket": "HIGH",
+   "ambiguity_flags": [
+    "reason_null_classification_inferred_from_source_step_pair"
+   ],
+   "proposed_action": "NUDGE",
+   "deferral_days": 0,
+   "rationale": "With reason=null the evidence is the pair step=payment_authentication and source=customer \u2014 the IDFC_FIRST attempt ended on the authentication screen and was attributed to the customer, not the issuer, which is drop-off rather than decline. No authorisation exists, so a retry cannot recover it and a fresh link is the only path; the null reason costs confidence in the label, not in the action. The profile is clean and unbothered: tenure_days=639, successful_payments=9, prior_failures_90d=0, prior_contacts_30d=0, days_since_last_contact=null. At \u20b9379.83 against typical_invoice_paise=57120 (\u20b9571.20), 0.67x their usual, affordability is not plausibly the obstacle."
+  },
+  "case_0020": {
+   "case_id": "case_0020",
+   "classification": "HARD_INSTRUMENT",
+   "classification_confidence": "MEDIUM",
+   "recovery_bucket": "HIGH",
+   "ambiguity_flags": [
+    "card_blocked_may_be_an_issuer_fraud_action_overlapping_hard_risk",
+    "no_lost_stolen_or_fraud_marker_and_no_mastercard_advice_code_to_disambiguate"
+   ],
+   "proposed_action": "REQUEST_INSTRUMENT_UPDATE",
+   "deferral_days": 0,
+   "rationale": "reason=card_blocked from source=bank at step=payment_authorization means KOTAK has stopped this specific token, which no retry cadence reverses. I read it as a dead instrument rather than a risk event because the payload carries no lost, stolen, or suspected-fraud marker and mastercard_advice_code=null, and because the customer's own record is spotless \u2014 prior_failures_90d=0 and prior_contacts_30d=0 against successful_payments=13 over tenure_days=373, with \u20b94705.48 at 0.92x typical_invoice_paise=509635 (\u20b95096.35), so there is no pattern of the kind that accompanies a compromised card. That reading is a judgement, not a certainty: issuer blocks are sometimes fraud-driven, which is why confidence is MEDIUM, and the outreach should ask for a new instrument without naming or echoing the blocked card's details."
+  },
+  "case_0077": {
+   "case_id": "case_0077",
+   "classification": "SOFT_TRANSIENT",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "VERY_HIGH",
+   "ambiguity_flags": [],
+   "proposed_action": "RETRY_NOW",
+   "deferral_days": 0,
+   "rationale": "reason=gateway_technical_error with source=gateway at step=payment_authorization places the fault on the YES_BANK UPI leg, not on any decision about this customer or their balance. \u20b94235.75 is 0.83x typical_invoice_paise=512696 (\u20b95126.96), comfortably inside what they routinely pay, so nothing about the invoice invites a limit or funds explanation. The relationship is long and frictionless \u2014 tenure_days=1088 with successful_payments=16, prior_failures_90d=0, prior_contacts_30d=0 and days_since_last_contact=null \u2014 so a prompt retry costs nothing and this RECURRING charge should simply settle on the next pass."
+  },
+  "case_0060": {
+   "case_id": "case_0060",
+   "classification": "SOFT_TRANSIENT",
+   "classification_confidence": "LOW",
+   "recovery_bucket": "HIGH",
+   "ambiguity_flags": [
+    "generic_payment_failed_from_source_bank_no_specific_reason_expected_per_razorpay_docs",
+    "underlying_cause_could_be_funds_or_a_one_off_issuer_control"
+   ],
+   "proposed_action": "RETRY_SCHEDULED",
+   "deferral_days": 1,
+   "rationale": "reason=payment_failed with source=bank at step=payment_authorization is INDUSIND declining without a stated cause, which Razorpay documents as normal, so the soft label is a default and the LOW confidence is about the cause, not the recovery odds. Those odds are good and rest on history rather than the code: successful_payments=7 over tenure_days=318 with prior_failures_90d=0, prior_contacts_30d=0 and days_since_last_contact=null \u2014 this is the first failure this customer has produced. \u20b93179.22 against typical_invoice_paise=305500 (\u20b93055.00) is 1.04x their norm, so the charge is routine and nothing suggests it strained an account or a cap. A short scheduled retry avoids re-presenting into whatever momentary issuer state produced the decline, and leaves the untouched contact budget intact."
+  },
+  "case_0063": {
+   "case_id": "case_0063",
+   "classification": "HARD_INSTRUMENT",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "HIGH",
+   "ambiguity_flags": [],
+   "proposed_action": "REQUEST_INSTRUMENT_UPDATE",
+   "deferral_days": 0,
+   "rationale": "reason=account_closed from source=bank ends this BOB card permanently \u2014 the funding account is gone, so retries are wasted attempts and only a new instrument recovers the \u20b9619.77. Unlike a closure on a young account, this one reads as a bank switch by a settled customer: tenure_days=628 with successful_payments=17 and prior_failures_90d=0, and the amount is 1.11x typical_invoice_paise=55944 (\u20b9559.44), so nothing was going wrong before the account closed. prior_contacts_30d=0 with days_since_last_contact=null means a card-update request arrives fresh rather than as one more message in a sequence, which is most of why this sits high despite requiring customer action."
+  },
+  "case_0069": {
+   "case_id": "case_0069",
+   "classification": "SOFT_TRANSIENT",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "MEDIUM",
+   "ambiguity_flags": [
+    "only_2_successful_payments_across_348_days_on_a_recurring_plan_suggests_an_unreliable_rail",
+    "prior_failures_90d_equals_lifetime_successes"
+   ],
+   "proposed_action": "RETRY_NOW",
+   "deferral_days": 0,
+   "rationale": "reason=gateway_technical_error with source=gateway at step=payment_authorization is a rail failure on the ICICI UPI connection, and \u20b9523.63 at 0.60x typical_invoice_paise=86797 (\u20b9867.97) rules out size as a factor, so the immediate retry is clearly the right instrument. The bucket is held mid-range by the account's thinness rather than by this error: tenure_days=348 has produced only successful_payments=2 while prior_failures_90d=2, so on a RECURRING plan this rail has failed as often as it has worked in the last quarter. prior_contacts_30d=0 means the customer has not been bothered and a silent retry keeps it that way; if it fails again the recurring instrument itself deserves scrutiny rather than another retry."
+  },
+  "case_0101": {
+   "case_id": "case_0101",
+   "classification": "SOFT_AUTH",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "VERY_HIGH",
+   "ambiguity_flags": [],
+   "proposed_action": "NUDGE",
+   "deferral_days": 0,
+   "rationale": "reason=payment_otp_timeout at step=payment_authentication with source=customer means the AXIS OTP simply expired \u2014 no authorisation was ever created, so re-presenting the charge has nothing to present and a fresh link is the only mechanism that works. The customer profile argues for immediate, confident outreach: successful_payments=17 over tenure_days=533 with prior_failures_90d=0, prior_contacts_30d=0 and days_since_last_contact=null, so this is a first lapse and the first message they will have received. \u20b94619.28 is 0.71x typical_invoice_paise=647474 (\u20b96474.74), below their normal RECURRING charge, so affordability plainly is not the story here \u2014 a missed or late OTP is."
+  },
+  "case_0024": {
+   "case_id": "case_0024",
+   "classification": "HARD_INSTRUMENT",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "HIGH",
+   "ambiguity_flags": [
+    "high_value_recurring_charge_warrants_a_careful_update_flow"
+   ],
+   "proposed_action": "REQUEST_INSTRUMENT_UPDATE",
+   "deferral_days": 0,
+   "rationale": "reason=account_closed from source=bank at step=payment_authorization is terminal for the KOTAK card; no retry cadence resurrects a closed account and the RECURRING mandate will keep failing until a new instrument replaces it. This is a valuable relationship worth an unhurried, well-built update request: tenure_days=639 with successful_payments=22, prior_failures_90d=0, prior_contacts_30d=0 and days_since_last_contact=null, and \u20b910007.11 against typical_invoice_paise=1051723 (\u20b910517.23) is 0.95x their normal ticket, so the closure is a banking change rather than a reaction to this invoice. It stays at HIGH rather than the top bucket only because recovery is gated on the customer re-entering card details for a five-figure recurring charge, which is real friction even for a good payer."
+  },
+  "case_0097": {
+   "case_id": "case_0097",
+   "classification": "SOFT_TRANSIENT",
+   "classification_confidence": "LOW",
+   "recovery_bucket": "LOW",
+   "ambiguity_flags": [
+    "generic_payment_failed_from_source_bank_no_specific_reason_expected_per_razorpay_docs",
+    "mastercard_advice_code_25_indicates_retry_after_24h_but_names_no_cause",
+    "chronic_pattern_7_failures_90d_against_7_lifetime_successes",
+    "declining_on_0.66x_typical_hints_at_an_unstated_funds_problem",
+    "contact_fatigue_3_contacts_30d"
+   ],
+   "proposed_action": "RETRY_SCHEDULED",
+   "deferral_days": 1,
+   "rationale": "HDFC returned reason=payment_failed from source=bank with no cause, which is expected rather than broken, and mastercard_advice_code=25 adds only timing \u2014 retry after 24 hours \u2014 so the soft label is inferred from the issuer's own willingness to be re-asked, not from any named condition. I distrust the benign reading somewhat: \u20b9741.95 is 0.66x typical_invoice_paise=111758 (\u20b91117.58), and repeatedly failing on below-average charges alongside prior_failures_90d=7 against successful_payments=7 over tenure_days=483 fits a quiet funds or issuer-control problem that the bare code is hiding. prior_contacts_30d=3 at days_since_last_contact=6.0 means the messaging budget is nearly exhausted, so the 24-hour retry the advice code sanctions is the cheap move; a fourth contact in a month is not."
+  },
+  "case_0067": {
+   "case_id": "case_0067",
+   "classification": "SOFT_AUTH",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "MEDIUM",
+   "ambiguity_flags": [
+    "deliberate_cancellation_not_a_timeout_may_signal_intent_to_stop",
+    "high_ticket_relative_to_a_64_day_relationship"
+   ],
+   "proposed_action": "NUDGE",
+   "deferral_days": 0,
+   "rationale": "reason=payment_cancelled_by_customer at step=payment_authentication with source=customer means the HDFC 3DS step was actively dismissed, so nothing was authorised and only a fresh link can recover the \u20b916460.90 \u2014 a retry is structurally incapable of helping. What separates this from the same code on a settled account is intent: a cancellation is a decision, not a lapsed timer, and it came from a customer with only tenure_days=64 and successful_payments=3, on a RECURRING charge that is 0.78x typical_invoice_paise=2106367 (\u20b921063.67) but still a five-figure commitment made only three times before. prior_failures_90d=0 and prior_contacts_30d=0 mean the first outreach is unencumbered and worth making, but I would treat a second cancellation as a churn signal rather than another auth failure."
+  },
+  "case_0029": {
+   "case_id": "case_0029",
+   "classification": "SOFT_TRANSIENT",
+   "classification_confidence": "LOW",
+   "recovery_bucket": "HIGH",
+   "ambiguity_flags": [
+    "generic_payment_failed_from_source_bank_no_specific_reason_expected_per_razorpay_docs",
+    "cause_not_determinable_from_payload"
+   ],
+   "proposed_action": "RETRY_SCHEDULED",
+   "deferral_days": 1,
+   "rationale": "reason=payment_failed with source=bank at step=payment_authorization is ICICI declining the UPI leg without stating why, documented as normal issuer behaviour, so the classification is a soft default and the low confidence attaches to the cause rather than to the outcome. The customer argues strongly for recovery regardless of cause: successful_payments=20 over tenure_days=540 with prior_failures_90d=0, prior_contacts_30d=0 and days_since_last_contact=null, and \u20b99641.40 is 0.80x typical_invoice_paise=1201390 (\u20b912013.90), meaningfully below what they normally clear, which makes a balance ceiling or a limit less likely than a momentary issuer state. A one-day scheduled retry avoids hammering the same condition immediately and keeps the untouched contact budget in reserve for the case where it fails twice."
+  },
+  "case_0084": {
+   "case_id": "case_0084",
+   "classification": "SOFT_FUNDS",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "VERY_LOW",
+   "ambiguity_flags": [
+    "successful_payments_0_customer_has_never_paid",
+    "typical_invoice_paise_populated_despite_zero_successful_payments_field_inconsistency",
+    "failure_dated_just_after_the_28th_31st_salary_window",
+    "high_ticket_on_a_20_day_old_account"
+   ],
+   "proposed_action": "RETRY_SCHEDULED",
+   "deferral_days": 27,
+   "rationale": "reason=insufficient_funds with source=customer at step=payment_authorization is unambiguous about the cause on the HDFC UPI leg \u2014 the balance was short of \u20b917741.15 \u2014 but the cause is the least interesting part of this record. successful_payments=0 across tenure_days=20 with prior_failures_90d=2 means this customer has never once completed a payment, so there is no demonstrated ability to pay this ONE_TIME invoice at any point in the cycle. Note also that typical_invoice_paise=2552948 is populated for an account with zero successes, so the 0.69x ratio it implies is not trustworthy as a behavioural baseline. The failure lands on the 1st, immediately after the 28th-31st salary cluster, so the account was already dry with the credit behind it rather than ahead of it; the only retry with real odds is the next credit window near the 28th. prior_contacts_30d=1 at days_since_last_contact=10.0 leaves one touch available, which I would save for after that retry."
+  },
+  "case_0037": {
+   "case_id": "case_0037",
+   "classification": "SOFT_LIMIT",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "HIGH",
+   "ambiguity_flags": [
+    "a_617_inr_charge_hitting_a_daily_cap_implies_other_same_day_activity_consumed_it"
+   ],
+   "proposed_action": "RETRY_SCHEDULED",
+   "deferral_days": 1,
+   "rationale": "reason=daily_limit_exceeded from source=bank at step=payment_authorization is a cap that resets at the day boundary, which makes this the one limit variety that a plain scheduled retry genuinely fixes \u2014 no split or new instrument needed, just tomorrow. The size confirms the customer was not the problem: \u20b9617.91 is 1.26x typical_invoice_paise=49115 (\u20b9491.15) but small in absolute terms, so INDUSIND's daily ceiling must have been consumed by other activity on the same day rather than by this charge. History is solid if unspectacular \u2014 successful_payments=4 over tenure_days=148 with prior_failures_90d=2 \u2014 and prior_contacts_30d=0 with days_since_last_contact=null means the retry can run silently with the full contact budget still available if it fails."
+  },
+  "case_0057": {
+   "case_id": "case_0057",
+   "classification": "SOFT_FUNDS",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "LOW",
+   "ambiguity_flags": [
+    "mastercard_advice_code_27_sets_a_4_day_floor_shorter_than_the_salary_aligned_retry_i_propose",
+    "recurring_funds_failures_4_in_90d_on_a_700_day_account_suggest_deterioration",
+    "contact_fatigue_3_contacts_30d",
+    "failure_dated_immediately_after_the_28th_31st_salary_window"
+   ],
+   "proposed_action": "RETRY_SCHEDULED",
+   "deferral_days": 27,
+   "rationale": "reason=payment_failed_insufficient_funds with source=customer at step=payment_authorization names the cause plainly, and mastercard_advice_code=27 marks it retriable after four days. I am deliberately going longer than that floor: the failure falls on the 1st, right after the 28th-31st salary cluster, so IDFC_FIRST was already short with the month's credit behind it, and a retry four days later lands in the emptiest part of the cycle. \u20b99731.67 is 0.94x typical_invoice_paise=1031239 (\u20b910312.39), so this is their normal ticket that they can no longer cover \u2014 prior_failures_90d=4 against successful_payments=10 over tenure_days=700 shows a payer whose position is deteriorating rather than one having a bad week. prior_contacts_30d=3 at days_since_last_contact=6.0 also rules out solving this with more messaging; the next salary window is the honest next attempt."
+  },
+  "case_0076": {
+   "case_id": "case_0076",
+   "classification": "SOFT_AUTH",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "VERY_HIGH",
+   "ambiguity_flags": [],
+   "proposed_action": "NUDGE",
+   "deferral_days": 0,
+   "rationale": "reason=payment_otp_timeout at step=payment_authentication with source=customer means the INDUSIND OTP lapsed before entry, leaving no authorisation for a retry to act on \u2014 a fresh link is the only mechanism, and it should convert easily here. successful_payments=25 over tenure_days=364 with prior_failures_90d=0, prior_contacts_30d=0 and days_since_last_contact=null describes a customer who has paid twenty-five times and never needed contacting once. \u20b9829.90 against typical_invoice_paise=73743 (\u20b9737.43) is 1.13x their usual, a small ONE_TIME charge well within reach, so this is a mistimed OTP and nothing more."
+  },
+  "case_0118": {
+   "case_id": "case_0118",
+   "classification": "SOFT_FUNDS",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "MEDIUM",
+   "ambiguity_flags": [
+    "failure_dated_just_after_the_28th_31st_salary_window_so_the_credit_is_behind_not_ahead",
+    "moderate_tenure_141_days_limits_confidence_in_the_payment_pattern"
+   ],
+   "proposed_action": "RETRY_SCHEDULED",
+   "deferral_days": 3,
+   "rationale": "reason=insufficient_funds with source=customer at step=payment_authorization on the YES_BANK UPI leg is a balance shortfall, and the amount tells us it was a narrow one: \u20b91028.59 is 1.02x typical_invoice_paise=101248 (\u20b91012.48), the customer's ordinary RECURRING charge that has cleared successful_payments=4 times over tenure_days=141. With prior_failures_90d=1 and prior_contacts_30d=0 this is close to a first stumble, not a pattern, which keeps the bucket mid-range rather than low. On timing: the failure sits on the 1st, just past the 28th-31st salary cluster, so the usual 'wait for payday' logic does not apply cleanly here \u2014 but a shortfall of this size on a four-figure charge often clears within a few days of ordinary inflows, so a short quiet retry is the better first move than either an immediate re-present or a month-long wait."
+  },
+  "case_0049": {
+   "case_id": "case_0049",
+   "classification": "SOFT_LIMIT",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "HIGH",
+   "ambiguity_flags": [
+    "daily_cap_reached_by_activity_outside_this_charge_which_is_below_the_customers_typical_ticket"
+   ],
+   "proposed_action": "RETRY_SCHEDULED",
+   "deferral_days": 1,
+   "rationale": "reason=daily_limit_exceeded from source=bank at step=payment_authorization is a ceiling that resets overnight, so unlike a per-transaction cap this recovers with nothing more than a one-day wait \u2014 no split, no new instrument, no customer involvement. The charge itself was not the cause: \u20b91136.80 is 0.93x typical_invoice_paise=122306 (\u20b91223.06), below this customer's normal RECURRING amount, so the BOB daily cap was consumed by other spending that day. The relationship supports a strong bucket \u2014 tenure_days=829 with successful_payments=12 and prior_failures_90d=1 \u2014 and prior_contacts_30d=0 with days_since_last_contact=null means the retry runs unseen and the full contact budget stays intact."
+  },
+  "case_0093": {
+   "case_id": "case_0093",
+   "classification": "SOFT_FUNDS",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "VERY_HIGH",
+   "ambiguity_flags": [],
+   "proposed_action": "RETRY_SCHEDULED",
+   "deferral_days": 3,
+   "rationale": "1182 days of tenure with 19 successful_payments and prior_failures_90d=0, prior_contacts_30d=0 - this INDUSIND card has never missed before. The ask is Rs 1306.18 against a typical_invoice of Rs 1035.94 (1.26x), a mild overshoot on a small balance rather than a pattern. reason=insufficient_funds at payment_authorization with source=customer is a clean balance read, no issuer ambiguity. A short wait costs nothing and needs no contact."
+  },
+  "case_0002": {
+   "case_id": "case_0002",
+   "classification": "SOFT_AUTH",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "HIGH",
+   "ambiguity_flags": [],
+   "proposed_action": "NUDGE",
+   "deferral_days": 0,
+   "rationale": "step=payment_authentication with source=customer and reason=payment_otp_timeout: nothing was ever authorised on this AXIS card, so no retry of the same attempt can succeed - only a fresh link. The customer is 867 days old with 15 successful_payments, prior_failures_90d=0 and prior_contacts_30d=0, so this is a first abandonment, not avoidance. Rs 19466.57 against a typical_invoice of Rs 13123.20 (1.48x) is the largest bill they have seen, which is a reason to make the new link explicit about the amount."
+  },
+  "case_0078": {
+   "case_id": "case_0078",
+   "classification": "SOFT_FUNDS",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "VERY_HIGH",
+   "ambiguity_flags": [
+    "description_instrument_mismatch"
+   ],
+   "proposed_action": "RETRY_SCHEDULED",
+   "deferral_days": 3,
+   "rationale": "The description says 'Card has insufficient balance' but instrument_type=upi on PNB - the description is Razorpay's canned card string, and reason=insufficient_funds plus step=payment_authorization is what I trust; either way the finding is an empty account, so the mismatch does not change the call. Rs 802.24 is only 0.59x the typical_invoice of Rs 1354.78, so the shortfall is timing, not size. 681 days, 19 successful_payments, prior_failures_90d=0, prior_contacts_30d=0."
+  },
+  "case_0053": {
+   "case_id": "case_0053",
+   "classification": "SOFT_TRANSIENT",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "VERY_HIGH",
+   "ambiguity_flags": [
+    "mastercard_advice_code_on_upi_rail"
+   ],
+   "proposed_action": "RETRY_SCHEDULED",
+   "deferral_days": 1,
+   "rationale": "source=gateway with reason=payment_timed_out is an infrastructure failure at BOB's switch, not a decision about this customer - 871 days, 12 successful_payments, prior_failures_90d=1, prior_contacts_30d=0. mastercard_advice_code=25 (retry after 24 hours) on a UPI payment is odd since Mastercard advice codes belong to card rails, but its timing guidance points the same way as the timeout, so I take the 24-hour wait rather than hammering the same switch now. Rs 1236.20 vs a typical_invoice of Rs 803.32 is not the cause here."
+  },
+  "case_0117": {
+   "case_id": "case_0117",
+   "classification": "SOFT_FUNDS",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "VERY_HIGH",
+   "ambiguity_flags": [
+    "description_instrument_mismatch",
+    "mastercard_advice_code_on_upi_rail"
+   ],
+   "proposed_action": "RETRY_SCHEDULED",
+   "deferral_days": 2,
+   "rationale": "Rs 593.00 on HDFC UPI against a typical_invoice of Rs 477.76 - a trivial sum that failed on reason=insufficient_funds, so the account is momentarily flat rather than the customer being unable to pay. 676 days, 14 successful_payments, prior_failures_90d=0, prior_contacts_30d=0 makes this a first miss. mastercard_advice_code=26 recommends 2 days and I follow it, noting the code appears on a upi instrument_type where it does not strictly belong; the description again names a card that is not the instrument used."
+  },
+  "case_0043": {
+   "case_id": "case_0043",
+   "classification": "HARD_INSTRUMENT",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "LOW",
+   "ambiguity_flags": [
+    "repeat_failure_cluster"
+   ],
+   "proposed_action": "REQUEST_INSTRUMENT_UPDATE",
+   "deferral_days": 0,
+   "rationale": "reason=card_blocked with source=bank at payment_authorization is the issuer stating this AXIS card is dead; the block will not lift because we retried, and this is a RECURRING mandate riding a card that cannot authorise. prior_failures_90d=6 against only 10 successful_payments over 669 days says the block has been in place across several cycles. prior_contacts_30d=2 with days_since_last_contact=6.0 means we have already asked twice and been ignored, which is why I put recovery low rather than mid despite Rs 18629.66 being only 0.69x their typical_invoice of Rs 27083.61."
+  },
+  "case_0086": {
+   "case_id": "case_0086",
+   "classification": "SOFT_LIMIT",
+   "classification_confidence": "MEDIUM",
+   "recovery_bucket": "LOW",
+   "ambiguity_flags": [
+    "zero_successful_payments_with_populated_typical_invoice",
+    "recurring_mandate_never_settled"
+   ],
+   "proposed_action": "REQUEST_INSTRUMENT_UPDATE",
+   "deferral_days": 0,
+   "rationale": "reason=payment_limit_exceeded from source=bank is nominally soft, but Rs 7876.53 is 1.00x the typical_invoice of Rs 7911.63 - the amount is exactly what this mandate always charges, so the card's per-transaction ceiling has never been high enough and a retry at the same value hits the same wall. successful_payments=0 across 56 tenure_days with prior_failures_90d=2 means this AXIS RECURRING mandate has never once settled, and typical_invoice_paise=791163 exists despite zero settlements, so it reflects the billed plan rather than observed behaviour. Splitting is not available on a fixed mandate, so a different instrument is the only path; prior_contacts_30d=2 (last 10 days ago) already shows weak engagement."
+  },
+  "case_0073": {
+   "case_id": "case_0073",
+   "classification": "SOFT_TRANSIENT",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "VERY_HIGH",
+   "ambiguity_flags": [],
+   "proposed_action": "RETRY_NOW",
+   "deferral_days": 0,
+   "rationale": "source=gateway with reason=gateway_technical_error is a failure in the plumbing between us and PNB; no one declined anything. The customer profile carries no counter-signal at all - 504 tenure_days, 25 successful_payments, prior_failures_90d=0, prior_contacts_30d=0 - and Rs 2646.22 is 0.92x their typical_invoice of Rs 2864.00, so the amount is unremarkable. Immediate re-attempt is the whole fix."
+  },
+  "case_0070": {
+   "case_id": "case_0070",
+   "classification": "SOFT_FUNDS",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "LOW",
+   "ambiguity_flags": [
+    "description_instrument_mismatch",
+    "chronic_failure_pattern",
+    "contact_fatigue"
+   ],
+   "proposed_action": "RETRY_SCHEDULED",
+   "deferral_days": 27,
+   "rationale": "The decline itself is soft - reason=insufficient_funds on ICICI UPI, with the description again naming a card the payment did not use - but the history is the story: prior_failures_90d=7 against successful_payments=3 over 374 tenure_days is a customer who mostly does not pay. Rs 4548.61 is only 0.69x their typical_invoice of Rs 6592.68 and still bounced, so the account is structurally short rather than briefly dipped. prior_contacts_30d=3 with days_since_last_contact=3.0 rules out another message. Today is the 1st, the worst point in the Indian salary cycle to re-present; I aim the retry at the 28th-30th credit window instead."
+  },
+  "case_0030": {
+   "case_id": "case_0030",
+   "classification": "HARD_RISK",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "LOW",
+   "ambiguity_flags": [
+    "no_prior_signal_before_risk_decline"
+   ],
+   "proposed_action": "ESCALATE_HUMAN",
+   "deferral_days": 0,
+   "rationale": "reason=payment_declined_risk from source=bank at payment_authorization, corroborated by mastercard_advice_code=21 (do not attempt again), is ICICI asserting suspected fraud - retrying re-triggers the same rule and contacting the customer would tell whoever holds the card which instrument is live, so neither is available. What makes this worth a human rather than a write-off is that the profile is clean: 582 tenure_days, 11 successful_payments, prior_failures_90d=0, prior_contacts_30d=0, and Rs 12769.57 at 1.53x the typical_invoice of Rs 8372.19 on a RECURRING mandate looks exactly like the amount jump that trips an issuer velocity rule on a legitimate account."
+  },
+  "case_0098": {
+   "case_id": "case_0098",
+   "classification": "HARD_INSTRUMENT",
+   "classification_confidence": "MEDIUM",
+   "recovery_bucket": "LOW",
+   "ambiguity_flags": [
+    "description_contradicts_reason",
+    "new_account",
+    "contact_fatigue"
+   ],
+   "proposed_action": "REQUEST_INSTRUMENT_UPDATE",
+   "deferral_days": 0,
+   "rationale": "The free text says 'Payment failed. Please retry after some time.' but reason=card_blocked with source=bank; I trust the structured reason because that generic string is Razorpay's customer-facing fallback shown for many underlying causes, whereas card_blocked is the issuer's actual classification, and acting on the text would mean retrying a blocked BOB card forever. Confidence is MEDIUM only because of that conflict. tenure_days=28 with successful_payments=1 and prior_contacts_30d=2 (days_since_last_contact=2.0) is a barely-started relationship already contacted twice; Rs 703.16 against a typical_invoice of Rs 488.18 is small enough that the effort ceiling is low."
+  },
+  "case_0036": {
+   "case_id": "case_0036",
+   "classification": "SOFT_TRANSIENT",
+   "classification_confidence": "MEDIUM",
+   "recovery_bucket": "MEDIUM",
+   "ambiguity_flags": [
+    "description_contradicts_reason",
+    "possible_masked_issuer_decline",
+    "contact_fatigue"
+   ],
+   "proposed_action": "RETRY_SCHEDULED",
+   "deferral_days": 1,
+   "rationale": "reason=gateway_technical_error and source=gateway both point at INDUSIND's rail, but the description says 'Payment declined by the issuing bank' - an issuer decision wrapped in a gateway envelope. I go with reason+source because they agree with each other and mastercard_advice_code=24 (retry after ~1 hour) is an explicit invitation to re-present, which an issuer does not give for a hard decline; confidence is MEDIUM because prior_failures_90d=4 over 472 days with 9 successful_payments is more repetition than pure infrastructure noise usually produces. Rs 2106.47 vs a typical_invoice of Rs 1934.72 is normal. Code 24's one hour is shorter than a day, so 1 is the nearest expressible delay; prior_contacts_30d=3 with days_since_last_contact=1.0 means retry silently, do not message."
+  },
+  "case_0103": {
+   "case_id": "case_0103",
+   "classification": "SOFT_FUNDS",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "MEDIUM",
+   "ambiguity_flags": [
+    "mastercard_advice_code_on_upi_rail",
+    "recent_contact"
+   ],
+   "proposed_action": "RETRY_SCHEDULED",
+   "deferral_days": 4,
+   "rationale": "reason=payment_failed_insufficient_funds on AXIS UPI at Rs 19445.24 against a typical_invoice of Rs 20732.27 (0.94x) - a normal-sized bill for them, so the shortfall is the balance and not a surprise charge. 531 tenure_days and 9 successful_payments support recovery; prior_failures_90d=4 with prior_contacts_30d=2 (days_since_last_contact=3.0) caps it at mid. mastercard_advice_code=27 asks for 4 days and I take it, though it appears on a upi instrument_type; if that attempt also fails the next presentation should be aimed at the 28th-30th salary window rather than repeated mid-cycle tries."
+  },
+  "case_0062": {
+   "case_id": "case_0062",
+   "classification": "SOFT_AUTH",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "MEDIUM",
+   "ambiguity_flags": [
+    "deliberate_cancellation_not_timeout",
+    "thin_payment_history"
+   ],
+   "proposed_action": "NUDGE",
+   "deferral_days": 0,
+   "rationale": "step=payment_authentication, source=customer, reason=payment_cancelled_by_customer - the ICICI 3DS page was reached and actively dismissed, so no authorisation exists and only a fresh link can work. I rate this below an OTP timeout because cancelling is a decision rather than a distraction, and successful_payments=3 over 237 tenure_days is a thin relationship to lean on. Against that, Rs 7787.99 is only 0.67x their typical_invoice of Rs 11607.42 and prior_failures_90d=0 with prior_contacts_30d=0 means nothing has gone wrong before and the channel is completely fresh."
+  },
+  "case_0023": {
+   "case_id": "case_0023",
+   "classification": "SOFT_LIMIT",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "VERY_HIGH",
+   "ambiguity_flags": [],
+   "proposed_action": "RETRY_SCHEDULED",
+   "deferral_days": 1,
+   "rationale": "reason=daily_limit_exceeded from source=bank on BOB UPI is a ceiling that resets at midnight, and Rs 11119.78 is only 0.64x this customer's typical_invoice of Rs 17255.52 - well inside any normal cap, so they simply spent their day's allowance elsewhere before we presented. 819 tenure_days, 8 successful_payments, prior_failures_90d=1 and prior_contacts_30d=0 give no reason to involve the customer at all; presenting tomorrow is the entire remedy."
+  },
+  "case_0021": {
+   "case_id": "case_0021",
+   "classification": "SOFT_TRANSIENT",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "VERY_HIGH",
+   "ambiguity_flags": [
+    "description_less_specific_than_reason"
+   ],
+   "proposed_action": "RETRY_SCHEDULED",
+   "deferral_days": 1,
+   "rationale": "The description 'Payment declined by the issuing bank' reads like a decision, but reason=issuer_not_available says BOB's authorisation host was unreachable and mastercard_advice_code=25 (retry after 24 hours) confirms the issuer expects a re-presentation - a genuine decline would carry a do-not-retry code, so I trust reason plus the advice code over the vague text. The customer is the strongest in this batch: 1181 tenure_days, 36 successful_payments, prior_failures_90d=0, prior_contacts_30d=0, and Rs 11758.57 is 0.95x their typical_invoice of Rs 12379.53."
+  },
+  "case_0001": {
+   "case_id": "case_0001",
+   "classification": "HARD_INSTRUMENT",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "HIGH",
+   "ambiguity_flags": [
+    "description_contradicts_reason"
+   ],
+   "proposed_action": "REQUEST_INSTRUMENT_UPDATE",
+   "deferral_days": 0,
+   "rationale": "The description invites a retry ('Payment failed. Please retry after some time.') but reason=payment_failed_card_expired is unambiguous and an expiry date does not move; I trust the structured reason because the text is Razorpay's generic fallback while the reason names a specific, verifiable state. source=customer fits - the stale card is the customer's to replace. Recovery is high despite being a hard decline: 350 tenure_days with 4 successful_payments, prior_failures_90d=0 and prior_contacts_30d=0 (days_since_last_contact=null, never contacted) is a willing customer who simply has an old BOB card on file, and Rs 9170.46 is 0.60x their typical_invoice of Rs 15367.70."
+  },
+  "case_0115": {
+   "case_id": "case_0115",
+   "classification": "SOFT_FUNDS",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "MEDIUM",
+   "ambiguity_flags": [
+    "shortfall_below_customer_norm"
+   ],
+   "proposed_action": "RETRY_SCHEDULED",
+   "deferral_days": 27,
+   "rationale": "Rs 14075.69 is only 0.65x this customer's typical_invoice of Rs 21498.95 and the AXIS card still came back insufficient_funds - they could not cover two thirds of a routine bill, which with prior_failures_90d=2 reads as a recurring month-end squeeze rather than a one-off dip. 368 tenure_days and 11 successful_payments keep this mid-bucket rather than low. days_since_last_contact=19.0 with prior_contacts_30d=2 leaves the channel usable but not fresh. Re-presenting today, the 1st, is the worst timing available; the 28th-30th salary credit window is where this collects."
+  },
+  "case_0038": {
+   "case_id": "case_0038",
+   "classification": "SOFT_TRANSIENT",
+   "classification_confidence": "MEDIUM",
+   "recovery_bucket": "VERY_HIGH",
+   "ambiguity_flags": [
+    "bank_decline_without_specific_reason"
+   ],
+   "proposed_action": "RETRY_SCHEDULED",
+   "deferral_days": 2,
+   "rationale": "reason=payment_failed with source=bank and the bare description 'Payment failed' carries no cause, which Razorpay documents as normal for issuer declines rather than a malformed payload, so I will not invent one - hence MEDIUM confidence. What does carry signal is mastercard_advice_code=26, BOB telling us to come back in 2 days, which is only issued for conditions the issuer considers temporary. Everything else argues for patience over contact: 717 tenure_days, 26 successful_payments, prior_failures_90d=0, prior_contacts_30d=0, and Rs 913.62 at 0.63x their typical_invoice of Rs 1461.75 on a RECURRING mandate."
+  },
+  "case_0033": {
+   "case_id": "case_0033",
+   "classification": "SOFT_TRANSIENT",
+   "classification_confidence": "MEDIUM",
+   "recovery_bucket": "MEDIUM",
+   "ambiguity_flags": [
+    "bank_decline_without_specific_reason",
+    "repeat_unexplained_declines_may_mask_hard_block",
+    "recent_contact"
+   ],
+   "proposed_action": "RETRY_SCHEDULED",
+   "deferral_days": 4,
+   "rationale": "Another bare reason=payment_failed from source=bank on INDUSIND with no stated cause - expected for issuer declines, not malformed - so I lean on mastercard_advice_code=27, a 4-day retry recommendation the issuer would not give for a dead instrument. Confidence stays MEDIUM and the bucket mid because prior_failures_90d=3 over only 234 tenure_days means the same unexplained decline keeps recurring, which is how a blocked card looks when the issuer never names the reason; if this fourth attempt also fails with no reason, treat the pattern as HARD_INSTRUMENT. Rs 3089.49 is 0.60x their typical_invoice of Rs 5144.73, and 9 successful_payments show the mandate did work. prior_contacts_30d=2 with days_since_last_contact=1.0 rules out messaging."
+  },
+  "case_0099": {
+   "case_id": "case_0099",
+   "classification": "SOFT_AUTH",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "LOW",
+   "ambiguity_flags": [
+    "repeated_deliberate_abandonment",
+    "willingness_signal_not_technical",
+    "contact_fatigue"
+   ],
+   "proposed_action": "ESCALATE_HUMAN",
+   "deferral_days": 0,
+   "rationale": "reason=payment_cancelled_by_customer at step=payment_authentication means the YES_BANK 3DS screen was reached and dismissed, so mechanically only a fresh link can help - but prior_failures_90d=6 against successful_payments=5 over 240 tenure_days says links have already been sent and dismissed repeatedly. Someone who reaches the authentication page and cancels has the ability to pay and is choosing not to, which is a dispute or a churn intent, not an OTP mishap. prior_contacts_30d=2 with days_since_last_contact=5.0 means a seventh automated link adds nothing, and Rs 19407.85 - though only 0.59x their typical_invoice of Rs 32935.04 - is large enough to justify a person asking what is wrong."
+  },
+  "case_0116": {
+   "case_id": "case_0116",
+   "classification": "SOFT_TRANSIENT",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "MEDIUM",
+   "ambiguity_flags": [
+    "zero_successful_payments_with_populated_typical_invoice",
+    "new_account"
+   ],
+   "proposed_action": "RETRY_NOW",
+   "deferral_days": 0,
+   "rationale": "reason=issuer_not_available with the description 'Issuer or switch is inoperative' and source=bank is KOTAK's authorisation host being down - text and reason agree, and nothing here is about this customer's standing. The retry itself is near-free, which is why the action is immediate. The bucket is held to mid rather than high by the account: successful_payments=0 across 59 tenure_days with prior_failures_90d=2, so this relationship has never once produced money, and typical_invoice_paise=89486 describes the billed plan rather than anything observed. Rs 532.06 is small enough that the effort should stay automated; prior_contacts_30d=1, days_since_last_contact=10.0."
+  },
+  "case_0032": {
+   "case_id": "case_0032",
+   "classification": "SOFT_FUNDS",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "HIGH",
+   "ambiguity_flags": [
+    "description_instrument_mismatch"
+   ],
+   "proposed_action": "RETRY_SCHEDULED",
+   "deferral_days": 3,
+   "rationale": "Rs 15934.62 is 1.41x this customer's typical_invoice of Rs 11299.18 - the bill is unusually large for them, so a balance that normally suffices did not, which is a much better prognosis than falling short of a routine amount. 581 tenure_days with 20 successful_payments, prior_failures_90d=1 and prior_contacts_30d=0 is a reliable payer having one bad day on AXIS UPI. The description names a card while instrument_type=upi, but reason=insufficient_funds is the same finding either way. A few days is enough for a one-off spike; no contact needed."
+  },
+  "case_0007": {
+   "case_id": "case_0007",
+   "classification": "SOFT_TRANSIENT",
+   "classification_confidence": "MEDIUM",
+   "recovery_bucket": "VERY_HIGH",
+   "ambiguity_flags": [
+    "bank_decline_without_specific_reason",
+    "no_mastercard_advice_code_to_time_the_retry"
+   ],
+   "proposed_action": "RETRY_SCHEDULED",
+   "deferral_days": 1,
+   "rationale": "reason=payment_failed with source=bank and no description beyond 'Payment failed' - SBI gave no cause, which Razorpay documents as expected for bank declines, and with mastercard_advice_code=null there is no issuer timing hint either, so I default to a conservative next-day re-presentation rather than an instant one. The history is what makes this worth retrying rather than escalating: 409 tenure_days, 15 successful_payments, prior_failures_90d=0, and Rs 1846.15 at 0.60x their typical_invoice of Rs 3085.32. prior_contacts_30d=1 at days_since_last_contact=14.0 is stale enough not to constrain a silent retry."
+  },
+  "case_0045": {
+   "case_id": "case_0045",
+   "classification": "SOFT_TRANSIENT",
+   "classification_confidence": "LOW",
+   "recovery_bucket": "HIGH",
+   "ambiguity_flags": [
+    "reason_field_is_null",
+    "bank_decline_without_specific_reason",
+    "no_mastercard_advice_code_to_time_the_retry"
+   ],
+   "proposed_action": "RETRY_SCHEDULED",
+   "deferral_days": 2,
+   "rationale": "reason is literally null with source=bank and only 'Payment failed' as text - HDFC named no cause at all and there is no mastercard_advice_code to fall back on, so confidence is LOW and the soft classification is an inference from the customer rather than from the error. That inference is well supported: 342 tenure_days, 17 successful_payments, prior_failures_90d=1, prior_contacts_30d=0, and Rs 12098.85 at 1.14x their typical_invoice of Rs 10630.59 on a RECURRING mandate that has been settling reliably. A silent 2-day re-presentation is the cheapest way to distinguish a blip from something structural; if it returns null again, reclassify rather than retry a third time."
+  },
+  "case_0082": {
+   "case_id": "case_0082",
+   "classification": "SOFT_LIMIT",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "HIGH",
+   "ambiguity_flags": [
+    "description_instrument_mismatch",
+    "recurring_mandate_cap_below_this_invoice"
+   ],
+   "proposed_action": "NUDGE",
+   "deferral_days": 0,
+   "rationale": "reason=payment_limit_exceeded from source=bank on a RECURRING YES_BANK autopay, where Rs 11405.99 is 1.43x the typical_invoice of Rs 7964.39 - the mandate's per-transaction cap was sized for the usual amount and this month's bill overshot it, so an identical retry hits the identical ceiling. The description says 'per-transaction limit set on the card' while instrument_type=upi; the mechanism is the same autopay cap either way. UPI autopay lets the payer approve an over-cap debit manually from the pre-debit notification, which is why a nudge beats a retry here. The customer is sound: 401 tenure_days, 18 successful_payments, prior_failures_90d=0, prior_contacts_30d=0, so the channel is completely fresh."
+  },
+  "case_0028": {
+   "case_id": "case_0028",
+   "classification": "SOFT_FUNDS",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "LOW",
+   "ambiguity_flags": [
+    "new_account",
+    "chronic_failure_pattern",
+    "recent_contact"
+   ],
+   "proposed_action": "RETRY_SCHEDULED",
+   "deferral_days": 2,
+   "rationale": "reason=payment_failed_insufficient_funds on a PNB RECURRING mandate where Rs 13712.73 is 0.80x the typical_invoice of Rs 17045.14 - short even of a below-normal bill. tenure_days=59 with successful_payments=1 and prior_failures_90d=3 is a three-week-old-style relationship already failing on its fourth attempt, which is what keeps the bucket low even though the decline code itself is soft. mastercard_advice_code=26 asks for 2 days and a silent retry costs nothing beyond one more logged failure, so I take the issuer's own timing; prior_contacts_30d=2 at days_since_last_contact=3.0 means the retry must stay silent, and if it fails the next presentation belongs in the 28th-30th salary window."
+  },
+  "case_0079": {
+   "case_id": "case_0079",
+   "classification": "SOFT_AUTH",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "HIGH",
+   "ambiguity_flags": [],
+   "proposed_action": "NUDGE",
+   "deferral_days": 0,
+   "rationale": "reason=payment_otp_timeout at step=payment_authentication with source=customer - the SBI OTP screen simply expired, no authorisation was ever created, so a retry of this attempt is impossible and a fresh link is the only mechanism. Everything else is favourable: Rs 609.56 is 0.81x their typical_invoice of Rs 749.76, a trivial sum, and 11 successful_payments over 146 tenure_days with prior_failures_90d=1 shows someone who normally completes. prior_contacts_30d=2 with days_since_last_contact=12.0 leaves enough room for one clean link."
+  },
+  "case_0000": {
+   "case_id": "case_0000",
+   "classification": "HARD_MANDATE",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "VERY_LOW",
+   "ambiguity_flags": [
+    "deliberate_revocation_is_a_churn_signal",
+    "contact_fatigue"
+   ],
+   "proposed_action": "ESCALATE_HUMAN",
+   "deferral_days": 0,
+   "rationale": "reason=mandate_revoked with source=customer on a RECURRING BOB mandate - the customer themselves cancelled the authorisation, so no retry has anything to present against and only a new mandate would work. The pattern says this was an ending, not an accident: prior_failures_90d=6 against 9 successful_payments, with prior_contacts_30d=2 at days_since_last_contact=4.0. Firing an automated re-authorisation link at someone who deliberately revoked four days after we last messaged them will read as not listening; 605 tenure_days and Rs 1475.62 against a typical_invoice of Rs 2433.58 make this a small but long-standing account where a person confirming whether they meant to cancel is the only move with any upside."
+  },
+  "case_0085": {
+   "case_id": "case_0085",
+   "classification": "SOFT_AUTH",
+   "classification_confidence": "HIGH",
+   "recovery_bucket": "HIGH",
+   "ambiguity_flags": [
+    "deliberate_cancellation_not_timeout"
+   ],
+   "proposed_action": "NUDGE",
+   "deferral_days": 0,
+   "rationale": "reason=payment_cancelled_by_customer at step=payment_authentication on INDUSIND - the 3DS page was dismissed, so nothing was authorised and a fresh link is the only route. Unlike the other cancellation in this batch, the history gives no reason to read intent into it: 634 tenure_days, 10 successful_payments, prior_failures_90d=1, prior_contacts_30d=0 and days_since_last_contact=null, so we have never chased this person. Rs 19943.91 at 1.15x their typical_invoice of Rs 17329.81 is a mild overshoot that could plausibly have made them pause at the confirmation screen, so the new link should state the amount plainly."
+  }
+ }
+}

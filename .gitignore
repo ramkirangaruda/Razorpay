@@ -6,6 +6,12 @@ venv/
 *.db
 sim/data/*.json
 !sim/data/.gitkeep
+# The recorded L1 classifications are an INPUT, not an output. Arm D replays
+# them, so without this file in the repo the measured LLM result cannot be
+# reproduced by anyone else and the numbers in the README become unverifiable
+# assertions. Generated batches and arm results stay ignored - those rebuild
+# from a seed.
+!sim/data/l1_classifications_seed42.json
 node_modules/
 dist/
 .DS_Store
