@@ -12,6 +12,3 @@ dist/
 
 # scratch: files staged for manual deletion (device_bash cannot delete)
 _to_delete/
-
-# scratch: files moved aside for manual deletion (the sandbox shell cannot delete)
-_to_delete/
