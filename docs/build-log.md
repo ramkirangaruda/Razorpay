@@ -220,3 +220,70 @@ hours and send messages at 3am while looking correct in review. `_utc()` is now 
 conversion point, documented, and the trace prints both zones.
 
 **Where it stands:** 231 tests. The 149 on L2a are byte-identical to how they were found.
+
+---
+
+## 2026-09-01 (later still) — The LLM arm, measured
+
+The repo's honest position all day was that no language model had ever run against the batch, and
+that the value of one over a decision table was unmeasured and claimed nowhere. That gap is now
+closed, and closing it produced a better finding than "the model wins".
+
+**How it was run, because provenance decides what the numbers are worth.** Claude classified all 120
+cases, reading only the fields a real L1 receives and given `SYSTEM_PROMPT` verbatim, across four
+separate fresh contexts. Those contexts had never seen `sim/generate_batch.py`, the ground truth, the
+bucket labels or the ambiguity flags. That isolation is not ceremony: whoever writes the batch
+generator knows the answer key — knows which cases had `reason` stripped, knows the contradictory
+descriptions still carry a correct structured `reason` — so a classification produced by that same
+context would be contaminated and every accuracy figure downstream would be meaningless.
+
+Recorded to `sim/data/l1_classifications_seed42.json` and replayed by `CachedLLMClassifier`, because
+a judged result has to reproduce and a live model call does not. This is **not** a live API run;
+`LLMClassifier` remains the production path and is still untested against the real endpoint.
+
+**Accuracy: 83% against the table's 78%** — but the aggregate is the least interesting cut. By
+bucket: clean 100% vs 100%, context-dependent 100% vs 100%, ambiguous **52% vs 38%**. The model ties
+on 65% of traffic.
+
+Splitting the ambiguous bucket by what was actually done to the payload localises the whole
+advantage to one place:
+
+| ambiguity | n | table | model |
+|---|---|---|---|
+| description contradicts `reason` | 12 | 100% | 100% |
+| generic bank decline, nothing survives | 15 | 20% | 20% |
+| `reason` null, `source`/`step` survive | 15 | **7%** | **47%** |
+
+Where the structured reason survives, both are perfect. Where nothing survives, both sit at the base
+rate and no classifier could do better. The model's entire edge is reading `source` × `step` when
+the gateway gave no reason — which is precisely the claim the design made in advance, now
+falsifiable rather than an appeal to model quality.
+
+**The part worth the day: better classification initially LOST money.** Arm D first came in at
+₹1,881,433 against arm C's ₹1,926,991, despite classifying better on every cut. The mechanism took a
+while to find and is not obvious. The model's per-case recovery buckets are far more dispersed than
+the table's class-level mapping — 34 cases at LOW or VERY_LOW against 21, at essentially the same
+mean — and `ScoreContext` consumes the bucket with no view of confidence, so a bucket the model was
+guessing at was trusted exactly as much as one it was sure of. The extra pessimism became stop
+signals manufactured from thin evidence, and it stopped invoices that were still live
+(under-proposals rose from 8 to 12).
+
+The fix was sitting in the data. Confidence is well calibrated: HIGH 100% over 83 cases, MEDIUM 76%
+over 17, LOW 20% over 20. Falling back to the table's class-level bucket when confidence is LOW
+moved arm D to **₹2,006,152** — ahead of both other policy arms, on fewer attempts and fewer contacts
+than either.
+
+So the honest headline is not "the LLM is better". It is: **the model's extra information was worth
+nothing until it was filtered by the model's own reliability signal.** An unused calibrated
+confidence output was the difference between the classifier being a net negative and a net positive.
+
+Headline moves to 93% of naive's value on 49% of the attempts and 82% of the contacts. Thirteen new
+tests pin every figure above, including the ties, so a change that moves a number fails a test rather
+than quietly making the README wrong.
+
+**Chart note.** Adding a fourth arm broke the frontier's palette: a fourth categorical hue cannot
+clear the all-pairs colour-vision floors in both modes — violet collides with blue on the dark
+surface at delta-E 1.9 for protanopia, magenta collides with orange in light and aqua in dark. Rather
+than hunting for a hue, C and D now share one and are separated by fill, hollow for the table and
+solid for the model. That is the better encoding anyway: they are the same policy with one component
+swapped, and now they read as a pair.

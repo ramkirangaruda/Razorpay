@@ -48,7 +48,10 @@ def test_backstop_does_not_beat_naive_on_raw_value(arms, floor):
     deliberately, with the reason understood, not by a number moving unnoticed.
     """
     naive = arms["A_naive"].value_added_over(floor)
-    backstop = arms["C_backstop"].value_added_over(floor)
+    backstop = max(
+        arms["C_backstop"].value_added_over(floor),
+        arms["D_backstop_llm"].value_added_over(floor),
+    )
     assert backstop < naive, (
         "Backstop now beats naive on raw value. That is not a failure — but the "
         "README's headline framing is built on it not being true, so update the "
@@ -58,7 +61,10 @@ def test_backstop_does_not_beat_naive_on_raw_value(arms, floor):
 
 def test_the_efficiency_claim_holds(arms, floor):
     """
-    "89% of the value, 52% of the attempts, 86% of the contacts."
+    "93% of the value, 49% of the attempts, 82% of the contacts."
+
+    Now measured on arm D, the model-classifier arm, which is the headline the
+    README leads with. Arm C (table classifier) is asserted separately below.
 
     These moved when the parallel L2a was discarded in favour of the existing
     one. The ordering in app/policy.BLAST_RADIUS_RANK is the reason: it ranks a
@@ -69,14 +75,14 @@ def test_the_efficiency_claim_holds(arms, floor):
     Tolerances are wide enough to survive a harmless refactor and tight enough
     that a real regression trips them.
     """
-    naive, backstop = arms["A_naive"], arms["C_backstop"]
+    naive, backstop = arms["A_naive"], arms["D_backstop_llm"]
     value_ratio = backstop.value_added_over(floor) / naive.value_added_over(floor)
     attempt_ratio = backstop.attempts / naive.attempts
     contact_ratio = backstop.contacts / naive.contacts
 
-    assert value_ratio == pytest.approx(0.89, abs=0.04), f"value ratio {value_ratio:.3f}"
-    assert attempt_ratio == pytest.approx(0.52, abs=0.06), f"attempt ratio {attempt_ratio:.3f}"
-    assert contact_ratio == pytest.approx(0.86, abs=0.06), f"contact ratio {contact_ratio:.3f}"
+    assert value_ratio == pytest.approx(0.93, abs=0.04), f"value ratio {value_ratio:.3f}"
+    assert attempt_ratio == pytest.approx(0.49, abs=0.06), f"attempt ratio {attempt_ratio:.3f}"
+    assert contact_ratio == pytest.approx(0.82, abs=0.06), f"contact ratio {contact_ratio:.3f}"
 
     # The shape of the claim, independent of the exact figures: Backstop is
     # cheaper on BOTH harm axes than the baseline it is being compared to.
@@ -112,7 +118,7 @@ def test_naive_arm_matches_razorpays_documented_schedule(arms):
 def test_vetoes_are_attributed_to_a_basis(arms):
     """Every veto must be classifiable as compliance or as a scorer backstop —
     that split is what makes the veto-rate metric mean anything."""
-    for name in ("B_rules_only", "C_backstop"):
+    for name in ("B_rules_only", "C_backstop", "D_backstop_llm"):
         r = arms[name]
         assert sum(r.veto_by_basis.values()) == r.vetoes
         assert set(r.veto_by_basis) <= {"REGULATORY", "BACKSTOP"}

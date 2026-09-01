@@ -36,11 +36,29 @@ from sim.run_arms import ADVERSARIAL, WorldParams, run
 # Categorical slots 1-3 from the reference palette, validated all-pairs in both
 # modes (scatter needs all-pairs, not adjacent). do_nothing is deliberately not
 # a categorical hue.
+#
+# There are four arms and only three hues, on purpose. A fourth categorical hue
+# cannot clear the all-pairs colour-vision floors in both modes — violet
+# collides with blue on the dark surface (delta-E 1.9 for protanopia), magenta
+# collides with orange in light and with aqua in dark. That is a documented
+# property of the palette rather than a search that went badly.
+#
+# The fix is better than a fourth hue would have been. C and D are not
+# independent policies: they are the SAME policy with the classifier swapped, so
+# they share a hue and are separated by fill — hollow for the decision table,
+# solid for the model. Colour carries the policy, shape carries the component
+# under test, and the pair reads as a pair, which is what the comparison
+# actually is.
 SERIES = {
     "A_naive": ("Naive (Razorpay default)", "#2a78d6", "#3987e5"),
     "B_rules_only": ("Rules only", "#eb6834", "#d95926"),
-    "C_backstop": ("Backstop", "#1baf7a", "#199e70"),
+    "C_backstop": ("Backstop · table", "#1baf7a", "#199e70"),
+    "D_backstop_llm": ("Backstop · LLM", "#1baf7a", "#199e70"),
 }
+
+# Arms drawn hollow rather than filled. Shape is the secondary encoding that
+# separates the two Backstop variants without a fourth hue.
+HOLLOW = {"C_backstop"}
 
 # Direct-label placement, per series. The three arms sit close together and two
 # of them share almost the same y, so a single offset rule collides — these are
@@ -48,8 +66,9 @@ SERIES = {
 # move. Format: (dx, dy, text-anchor).
 LABEL_OFFSET = {
     "A_naive": (-16, 5, "end"),
-    "B_rules_only": (0, -16, "middle"),
-    "C_backstop": (0, 24, "middle"),
+    "B_rules_only": (14, 4, "start"),
+    "C_backstop": (4, 26, "middle"),
+    "D_backstop_llm": (-14, -14, "end"),
 }
 
 W, H = 720, 400
@@ -168,9 +187,15 @@ def svg(points: dict, curve: list) -> str:
         cx, cy = px(p["x"]), py(p["y"])
         dx, dy, anchor = LABEL_OFFSET[name]
         out.append(f'<circle cx="{cx:.1f}" cy="{cy:.1f}" r="9.5" class="ring"/>')
-        out.append(f'<circle cx="{cx:.1f}" cy="{cy:.1f}" r="7" fill="var(--{name})">'
-                   f'<title>{esc(label)}: {p["recovered"]} recovered, {p["attempts"]} attempts, '
-                   f'{p["contacts"]} contacts, {p["y"]:,.0f} INR added</title></circle>')
+        if name in HOLLOW:
+            out.append(f'<circle cx="{cx:.1f}" cy="{cy:.1f}" r="6" fill="var(--surface)" '
+                       f'stroke="var(--{name})" stroke-width="2.5">'
+                       f'<title>{esc(label)}: {p["recovered"]} recovered, {p["attempts"]} attempts, '
+                       f'{p["contacts"]} contacts, {p["y"]:,.0f} INR added</title></circle>')
+        else:
+            out.append(f'<circle cx="{cx:.1f}" cy="{cy:.1f}" r="7" fill="var(--{name})">'
+                       f'<title>{esc(label)}: {p["recovered"]} recovered, {p["attempts"]} attempts, '
+                       f'{p["contacts"]} contacts, {p["y"]:,.0f} INR added</title></circle>')
         out.append(f'<text x="{cx+dx:.1f}" y="{cy+dy:.1f}" class="lbl" '
                    f'text-anchor="{anchor}">{esc(label)}</text>')
 
@@ -201,15 +226,15 @@ def table(points: dict, adversarial: dict) -> str:
 
 CSS = """
 :root{--bg:#f7f7f5;--fg:#1a1a18;--mut:#6b6b66;--line:#dcdcd6;--card:#fcfcfb;
---A_naive:#2a78d6;--B_rules_only:#eb6834;--C_backstop:#1baf7a;--zero:#8a8a83;
---grid:#e6e6e0}
+--A_naive:#2a78d6;--B_rules_only:#eb6834;--C_backstop:#1baf7a;--D_backstop_llm:#1baf7a;--zero:#8a8a83;
+--grid:#e6e6e0;--surface:#fcfcfb}
 @media(prefers-color-scheme:dark){:root:not([data-theme="light"]){
 --bg:#161614;--fg:#ecebe6;--mut:#9b9a92;--line:#33322d;--card:#1a1a19;
---A_naive:#3987e5;--B_rules_only:#d95926;--C_backstop:#199e70;--zero:#7d7c75;
---grid:#2a2a26}}
+--A_naive:#3987e5;--B_rules_only:#d95926;--C_backstop:#199e70;--D_backstop_llm:#199e70;--zero:#7d7c75;
+--grid:#2a2a26;--surface:#1a1a19}}
 :root[data-theme="dark"]{--bg:#161614;--fg:#ecebe6;--mut:#9b9a92;--line:#33322d;
 --card:#1a1a19;--A_naive:#3987e5;--B_rules_only:#d95926;--C_backstop:#199e70;
---zero:#7d7c75;--grid:#2a2a26}
+--zero:#7d7c75;--grid:#2a2a26;--surface:#1a1a19}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--fg);
 font:14px/1.6 ui-sans-serif,-apple-system,"Segoe UI",Roboto,sans-serif}
@@ -255,7 +280,9 @@ def main() -> None:
     data = collect(args.n, args.seed)
     pts, curve, adv = data["points"], data["curve"], data["adversarial"]
 
-    naive, back = pts["A_naive"], pts["C_backstop"]
+    naive = pts["A_naive"]
+    back = max((pts[k] for k in ("C_backstop", "D_backstop_llm") if k in pts),
+               key=lambda p: p["y"])
     val_pct = back["y"] / naive["y"] * 100
     att_pct = back["attempts"] / naive["attempts"] * 100
     cnt_pct = back["contacts"] / naive["contacts"] * 100
@@ -269,7 +296,7 @@ Up is more money; left is fewer messages to customers. n={args.n}, seed={args.se
 identical batch for every arm.</p>
 
 <div class=fig>{svg(pts, curve)}</div>
-<p class=cap>The dashed line is Backstop&rsquo;s belief sweep: one agent, told to believe
+<p class=cap>Filled marker = model classifier, hollow = decision table; same policy, one component swapped. The dashed line is the table arm&rsquo;s belief sweep: one agent, told to believe
 contact fatigue is anywhere from zero to eight times our estimate, holding the world
 fixed. Believing fatigue is real moves it left, to fewer contacts; the unlabelled
 right-hand end of the curve is the agent ignoring fatigue entirely, which lands it

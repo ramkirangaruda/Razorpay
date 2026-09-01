@@ -61,7 +61,7 @@ import random
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timedelta, timezone
 
-from app.classifier import Classifier, LookupClassifier
+from app.classifier import CachedLLMClassifier, Classifier, LookupClassifier
 from app.models import FailureClass, InterventionAction
 from app.policy import L1Proposal, evaluate
 from app.rule_basis import basis_of
@@ -226,12 +226,12 @@ class BackstopArm:
     aggression and the economics decide everything below it.
     """
 
-    name = "C_backstop"
     uses_gate = True
 
-    def __init__(self, classifier: Classifier, beliefs: Beliefs):
+    def __init__(self, classifier: Classifier, beliefs: Beliefs, name: str = "C_backstop"):
         self.classifier = classifier
         self.beliefs = beliefs
+        self.name = name
 
     def step(self, st: InvoiceState):
         c = self.classifier.classify(st.case, {"attempts": st.attempts, "contacts": st.contacts})
@@ -597,8 +597,27 @@ def simulate(cases: list[dict], arm, world: WorldParams, seed: int,
 
 
 def build_arms(beliefs: Beliefs) -> list:
+    """
+    Arms B, C and D differ by exactly one component each, which is the point.
+
+        B  table  + L2a
+        C  table  + L2b + L2a      <- isolates the expected-value layer
+        D  model  + L2b + L2a      <- isolates the classifier
+
+    B against C measures what the economics buy with the classifier held fixed.
+    C against D measures what a language model buys with the economics held
+    fixed. Running only A against D would confound the two and the result would
+    say nothing about which change did the work.
+
+    D is skipped when no recorded classification file is present, so a fresh
+    checkout still produces A/B/C rather than failing.
+    """
     table = LookupClassifier()
-    return [NoActionArm(), NaiveArm(), RulesOnlyArm(table), BackstopArm(table, beliefs)]
+    arms = [NoActionArm(), NaiveArm(), RulesOnlyArm(table), BackstopArm(table, beliefs)]
+    cached = CachedLLMClassifier()
+    if cached.available:
+        arms.append(BackstopArm(cached, beliefs, name="D_backstop_llm"))
+    return arms
 
 
 def run(n: int, seed: int, world: WorldParams, beliefs: Beliefs,

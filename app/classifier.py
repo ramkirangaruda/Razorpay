@@ -359,3 +359,96 @@ class LLMClassifier:
             ambiguity_flags=tuple(raw.get("ambiguity_flags", ())),
             deferral_days=int(raw.get("deferral_days", 0)),
         )
+
+
+# ---------------------------------------------------------------------------
+# The replayable LLM arm
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class CachedLLMClassifier:
+    """
+    Replays a recorded set of L1 classifications from disk.
+
+    This exists because a live model call is not reproducible and a judged
+    result has to be. `LLMClassifier` above is the production path; this is how
+    a measured run gets pinned so that `sim/run_arms.py` produces the same
+    numbers on someone else's machine a week later.
+
+    READ THE PROVENANCE BLOCK in the JSON file before quoting any figure that
+    comes out of this class. The recorded classifications were produced by
+    Claude reading only the fields a real L1 receives, in four separate fresh
+    contexts that had never seen the batch generator or the ground truth — that
+    isolation is the whole reason the accuracy numbers mean anything, because
+    whoever wrote the generator knows the answer key.
+
+    It is NOT a live API run, and nothing in the repo claims it is.
+
+    Falls back to the decision table for any case_id it has no record of, and
+    counts those, so a batch regenerated at a different seed or size degrades
+    into arm B rather than crashing or silently scoring itself on a subset.
+    """
+
+    path: str = "sim/data/l1_classifications_seed42.json"
+    name: str = "cached_llm"
+    # Use the model's own recovery bucket only when it is confident. On LOW
+    # confidence, fall back to the class-level bucket the decision table would
+    # have used.
+    #
+    # This is not hedging, it is reading the measurement. The recorded run is
+    # well calibrated — HIGH 100% accurate over 83 cases, MEDIUM 76% over 17,
+    # LOW 20% over 20 — and its per-case buckets are far more dispersed than the
+    # table's class-level mapping (34 cases at LOW or VERY_LOW against the
+    # table's 21, at the same mean). More dispersion is more information when
+    # the model is right and a stop-signal manufactured from thin evidence when
+    # it is not. Since the model already tells us which is which, ignoring that
+    # and trusting every bucket equally leaves a free improvement on the table.
+    trust_bucket_below_confidence: bool = False
+    _records: dict = field(default_factory=dict)
+    _fallback: LookupClassifier = field(default_factory=LookupClassifier)
+    misses: int = 0
+
+    def __post_init__(self) -> None:
+        try:
+            with open(self.path) as f:
+                self._records = json.load(f)["classifications"]
+        except FileNotFoundError:
+            self._records = {}
+
+    @property
+    def available(self) -> bool:
+        return bool(self._records)
+
+    def classify(self, case: dict, state: dict) -> Classification:
+        rec = self._records.get(case.get("case_id"))
+        if rec is None:
+            self.misses += 1
+            return self._fallback.classify(case, state)
+        fc = FailureClass(rec["classification"])
+        confidence = rec["classification_confidence"]
+        bucket = rec["recovery_bucket"]
+        if confidence == "LOW" and not self.trust_bucket_below_confidence:
+            bucket = _bucket_from_class(fc)
+
+        return Classification(
+            classification=fc,
+            classification_confidence=confidence,
+            recovery_bucket=bucket,
+            # The model proposed an opening action for a fresh failure. The
+            # simulator revisits an invoice several times, so the escalation
+            # ladder — retry, then ask once, then stop — has to come from live
+            # invoice state rather than from a recording made before any of it
+            # happened. The model's contribution here is the CLASS and the
+            # BUCKET, which is what the comparison against the table measures;
+            # replaying a stale RETRY_NOW on attempt four would be measuring the
+            # recording's age, not the model.
+            proposed_action=_table_action(
+                fc,
+                state.get("attempts", 0),
+                state.get("contacts", 0),
+            ),
+            rationale=rec["rationale"],
+            ambiguity_flags=tuple(rec.get("ambiguity_flags", ())),
+            deferral_days=int(rec.get("deferral_days", 0)),
+        )

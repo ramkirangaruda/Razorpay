@@ -2,15 +2,15 @@
 <meta name=viewport content="width=device-width,initial-scale=1">
 <title>Backstop &mdash; the frontier</title><style>
 :root{--bg:#f7f7f5;--fg:#1a1a18;--mut:#6b6b66;--line:#dcdcd6;--card:#fcfcfb;
---A_naive:#2a78d6;--B_rules_only:#eb6834;--C_backstop:#1baf7a;--zero:#8a8a83;
---grid:#e6e6e0}
+--A_naive:#2a78d6;--B_rules_only:#eb6834;--C_backstop:#1baf7a;--D_backstop_llm:#1baf7a;--zero:#8a8a83;
+--grid:#e6e6e0;--surface:#fcfcfb}
 @media(prefers-color-scheme:dark){:root:not([data-theme="light"]){
 --bg:#161614;--fg:#ecebe6;--mut:#9b9a92;--line:#33322d;--card:#1a1a19;
---A_naive:#3987e5;--B_rules_only:#d95926;--C_backstop:#199e70;--zero:#7d7c75;
---grid:#2a2a26}}
+--A_naive:#3987e5;--B_rules_only:#d95926;--C_backstop:#199e70;--D_backstop_llm:#199e70;--zero:#7d7c75;
+--grid:#2a2a26;--surface:#1a1a19}}
 :root[data-theme="dark"]{--bg:#161614;--fg:#ecebe6;--mut:#9b9a92;--line:#33322d;
 --card:#1a1a19;--A_naive:#3987e5;--B_rules_only:#d95926;--C_backstop:#199e70;
---zero:#7d7c75;--grid:#2a2a26}
+--zero:#7d7c75;--grid:#2a2a26;--surface:#1a1a19}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--fg);
 font:14px/1.6 ui-sans-serif,-apple-system,"Segoe UI",Roboto,sans-serif}
@@ -83,14 +83,17 @@ identical batch for every arm.</p>
 <text x="613.5" y="75.1" class="lbl" text-anchor="end">Naive (Razorpay default)</text>
 <circle cx="533.2" cy="132.1" r="9.5" class="ring"/>
 <circle cx="533.2" cy="132.1" r="7" fill="var(--B_rules_only)"><title>Rules only: 78 recovered, 157 attempts, 65 contacts, 2,000,191 INR added</title></circle>
-<text x="533.2" y="116.1" class="lbl" text-anchor="middle">Rules only</text>
+<text x="547.2" y="136.1" class="lbl" text-anchor="start">Rules only</text>
 <circle cx="522.5" cy="160.1" r="9.5" class="ring"/>
-<circle cx="522.5" cy="160.1" r="7" fill="var(--C_backstop)"><title>Backstop: 73 recovered, 145 attempts, 64 contacts, 1,926,991 INR added</title></circle>
-<text x="522.5" y="184.1" class="lbl" text-anchor="middle">Backstop</text>
+<circle cx="522.5" cy="160.1" r="6" fill="var(--surface)" stroke="var(--C_backstop)" stroke-width="2.5"><title>Backstop · table: 73 recovered, 145 attempts, 64 contacts, 1,926,991 INR added</title></circle>
+<text x="526.5" y="186.1" class="lbl" text-anchor="middle">Backstop · table</text>
+<circle cx="490.4" cy="129.8" r="9.5" class="ring"/>
+<circle cx="490.4" cy="129.8" r="7" fill="var(--D_backstop_llm)"><title>Backstop · LLM: 71 recovered, 137 attempts, 61 contacts, 2,006,152 INR added</title></circle>
+<text x="476.4" y="115.8" class="lbl" text-anchor="end">Backstop · LLM</text>
 <text x="380" y="386" class="axt" text-anchor="middle">customer contacts per invoice &rarr; more harm</text>
 <text x="17" y="186" class="axt" text-anchor="middle" transform="rotate(-90 17 186)">net value added (INR)</text>
 </svg></div>
-<p class=cap>The dashed line is Backstop&rsquo;s belief sweep: one agent, told to believe
+<p class=cap>Filled marker = model classifier, hollow = decision table; same policy, one component swapped. The dashed line is the table arm&rsquo;s belief sweep: one agent, told to believe
 contact fatigue is anywhere from zero to eight times our estimate, holding the world
 fixed. Believing fatigue is real moves it left, to fewer contacts; the unlabelled
 right-hand end of the curve is the agent ignoring fatigue entirely, which lands it
@@ -101,17 +104,18 @@ it, so the axis is zoomed to the range where the arms actually differ.</p>
 <table><caption>The same numbers, for readers who would rather have them than a picture.</caption><tr><th>arm</th><th>value added</th><th>contacts/invoice</th><th>recovered</th><th>attempts</th><th>value added, adversarial world</th></tr>
 <tr><td><span class='sw' style='background:var(--A_naive)'></span>Naive (Razorpay default)</td><td class='num'>2,161,735</td><td class='num'>0.62</td><td class='num'>80</td><td class='num'>280</td><td class='num'>2,685,148</td></tr>
 <tr><td><span class='sw' style='background:var(--B_rules_only)'></span>Rules only</td><td class='num'>2,000,191</td><td class='num'>0.54</td><td class='num'>78</td><td class='num'>157</td><td class='num'>2,355,741</td></tr>
-<tr><td><span class='sw' style='background:var(--C_backstop)'></span>Backstop</td><td class='num'>1,926,991</td><td class='num'>0.53</td><td class='num'>73</td><td class='num'>145</td><td class='num'>2,132,352</td></tr>
+<tr><td><span class='sw' style='background:var(--C_backstop)'></span>Backstop · table</td><td class='num'>1,926,991</td><td class='num'>0.53</td><td class='num'>73</td><td class='num'>145</td><td class='num'>2,132,352</td></tr>
+<tr><td><span class='sw' style='background:var(--D_backstop_llm)'></span>Backstop · LLM</td><td class='num'>2,006,152</td><td class='num'>0.51</td><td class='num'>71</td><td class='num'>137</td><td class='num'>2,031,402</td></tr>
 </table>
 
 <h2>What this says</h2>
-<p>Backstop captures <b>89%</b> of the naive baseline&rsquo;s value using
-<b>52%</b> of the authorisation attempts and <b>86%</b> of the
+<p>Backstop captures <b>93%</b> of the naive baseline&rsquo;s value using
+<b>49%</b> of the authorisation attempts and <b>82%</b> of the
 customer contacts. It does not beat Razorpay&rsquo;s default on raw value, and this
 page is not arranged to suggest it does &mdash; the naive arm sits highest on the
 y-axis and is drawn that way.</p>
 <p>The claim is the shape of the curve, not a single win. Whether trading
-11% of recovered value for 14% fewer customer contacts is
+7% of recovered value for 18% fewer customer contacts is
 a good deal depends on what a dunning contact actually costs a customer relationship
 &mdash; and that is the one number in this model with no published source. The sweep
 exists so a reader can pick their own answer and read off the consequence, rather than

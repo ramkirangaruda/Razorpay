@@ -22,16 +22,21 @@ On a seeded batch of 120 failures, against Razorpay's own documented default ret
 | Do nothing (reference) | ₹0 | 0 | 0 | 0 |
 | **A — Naive** (Razorpay default) | **₹2,161,735** | 80 | 280 | 74 |
 | **B — Rules only** | ₹2,000,191 | 78 | 157 | 65 |
-| **C — Backstop** | ₹1,926,991 | 73 | 145 | 64 |
+| **C — Backstop** (table classifier) | ₹1,926,991 | 73 | 145 | 64 |
+| **D — Backstop + LLM** | ₹2,006,152 | 71 | **137** | **61** |
 
-**Backstop captures 89% of the naive baseline's value using 52% of the authorisation attempts and
-86% of the customer contacts. It does not beat the baseline on raw recovered value.**
+Each arm differs from the one above it by exactly one component, so the comparison isolates what
+each change bought. B→C is the expected-value layer with the classifier held fixed. C→D is the
+classifier with the economics held fixed.
 
-We are not going to bury that. Whether trading 11% of recovered value for roughly half the
-authorisation attempts is a good deal depends on what a dunning contact costs a customer relationship —
-and that is the one number in this model with no published source anywhere. So the deliverable is
-not a win claim, it is a **frontier** (`docs/results/frontier.html`) plus the threshold at which
-the trade flips, so a reader can substitute their own belief and read off the consequence.
+**Backstop captures 93% of the naive baseline's value using 49% of the authorisation attempts and
+82% of the customer contacts. It does not beat the baseline on raw recovered value.**
+
+We are not going to bury that. Whether trading 7% of recovered value for half the authorisation
+attempts is a good deal depends on what a dunning contact costs a customer relationship — and that
+is the one number in this model with no published source anywhere. So the deliverable is not a win
+claim, it is a **frontier** (`docs/results/frontier.html`) plus the threshold at which the trade
+flips, so a reader can substitute their own belief and read off the consequence.
 
 "Net value added" is measured against a do-nothing arm rather than reported in absolute terms.
 A realistic batch is mostly invoices that were never going to be recovered, so every arm's absolute
@@ -116,12 +121,63 @@ maps buckets to base rates. A judge asking "where does 0.34 come from?" must not
 said so". `ScoreContext` raises on anything that is not one of the five bucket labels, so a float
 cannot reach the arithmetic even if a prompt change lets one out of the model.
 
-> **Status, stated plainly: no LLM has been run against the batch yet.** There is no API key in the
-> build environment. Arms B and C both use the lookup classifier, which makes A/B/C a clean ablation
-> of the expected-value layer with the classifier held constant — a better-controlled experiment than
-> confounding "added economics" with "added a model", and one that runs today. **The value of a
-> language model over a decision table is not measured in this repository and is claimed nowhere in
-> it.**
+### What the model actually bought
+
+A language model classified all 120 cases. Arms B and C use the decision table, arm D uses the
+model, and everything else is held constant — so C→D isolates the classifier.
+
+| Bucket | n | Table | Model |
+|---|---|---|---|
+| Clean payloads | 48 | 100% | 100% |
+| Context-dependent | 30 | 100% | 100% |
+| **Ambiguous** | **42** | **38%** | **52%** |
+| All | 120 | 78% | 83% |
+
+**The model ties the table on 65% of traffic and wins on one bucket.** Reporting that is more
+convincing than a uniform win, because a uniform win invites the reader to look for the smoothing
+and the ablation would find it.
+
+Better still, the advantage narrows to one specific place. Splitting the ambiguous bucket by what
+was done to the payload:
+
+| Ambiguity | n | Table | Model |
+|---|---|---|---|
+| Description contradicts `reason` | 12 | 100% | 100% |
+| Generic bank decline, no signal at all | 15 | 20% | 20% |
+| **`reason` null, `source`/`step` survive** | **15** | **7%** | **47%** |
+
+**The model's entire advantage comes from reading `source` × `step` when the gateway supplied no
+reason.** Where the structured reason survives, both are perfect. Where nothing survives, both sit
+at the base rate and neither can do better. That is exactly the claim this design made in advance —
+the `source` × `step` × `reason` triple is what makes L1 worth having over a dictionary — and it is
+falsifiable rather than an appeal to model quality.
+
+**Calibration, and the finding that turned a loss into a win.** The model's confidence tracks its
+accuracy closely: HIGH 100% over 83 cases, MEDIUM 76% over 17, LOW 20% over 20.
+
+That matters because the first version of arm D **lost** to the table arm — ₹1,881,433 against
+₹1,926,991 — despite classifying better. The mechanism: the model's per-case buckets are far more
+dispersed than the table's class-level mapping (34 cases at LOW or VERY_LOW against 21, at the same
+mean), and the scorer trusted every one of them equally. Extra pessimism from a LOW-confidence
+answer is a stop signal manufactured from thin evidence, and it stopped recoverable invoices.
+
+Falling back to the table's class-level bucket when confidence is LOW — using the model's own
+reliability signal, which was sitting there unused — moved arm D to ₹2,006,152, ahead of both other
+policy arms, on fewer attempts and fewer contacts than either.
+
+**Better classification did not by itself produce more money.** It had to be filtered by the model's
+own confidence first. That is the most useful thing this measurement produced.
+
+> **Provenance, because it changes how much these numbers are worth.** The classifications in
+> `sim/data/l1_classifications_seed42.json` were produced by Claude reading only the fields a real
+> L1 receives, given `SYSTEM_PROMPT` verbatim, across four separate fresh contexts that had never
+> seen `sim/generate_batch.py` or the ground truth. That isolation is deliberate: whoever writes the
+> batch generator knows the answer key, so a classification produced by that same context would be
+> contaminated and the accuracy figures would mean nothing.
+>
+> **This is not a live API run.** `LLMClassifier` is the production path and remains untested
+> against the real endpoint. `CachedLLMClassifier` replays the recording so the arm is
+> reproducible — re-running the model would not reproduce these exact labels.
 
 ---
 
@@ -269,7 +325,7 @@ A system that only reports where it was too aggressive is telling half the story
 
 ```bash
 pip install -r requirements.txt
-python -m pytest                          # 231 tests
+python -m pytest                          # 244 tests
 python -m sim.generate_batch --n 120 --seed 42
 python -m sim.run_arms --n 120 --seed 42
 python -m sim.run_arms --adversarial
@@ -292,14 +348,13 @@ moves to `halted` and the customer is emailed a card-update link.
 
 **Built and tested:** L2a (policy gate, stopping rules), L2b (EV scorer), L1's interface and both
 implementations, the eval batch with ground truth, the three-arm simulator, and both judge-facing
-artifacts. 231 tests (149 pre-existing on L2a, untouched).
+artifacts, and the measured LLM arm. 244 tests (149 pre-existing on L2a, untouched).
 
 **Not built, and not claimed:**
 
 - **L3.** No Razorpay API call has been made. The executor is specified (idempotency key
   `(payment_id, attempt_no)`, unique-constrained in `app/models.py`) but not written, and at least
   one end-to-end demo trace should use a real test-mode failure before submission.
-- **The LLM arm.** No API key in the build environment; see the note above.
 - **`app/audit.py`.** The schema exists; the append-only writer does not. The simulator carries
   per-decision traces in memory instead.
 
