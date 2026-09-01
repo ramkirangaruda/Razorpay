@@ -384,6 +384,12 @@ every call site produces the same shape; a policy decision writes one row per fi
 the table. Not yet wired into `sim/run_arms.py`, which is a pure in-memory harness with no DB by
 design — this is a standalone module ready for a real caller.
 
+**The RBI citation is verified, not assumed.** `EMANDATE_PREDEBIT_NOTICE`'s figures — circular
+RBI/DPSS/2026-27/396, 21 April 2026; the 24h pre-transaction notice and its required contents; the
+per-transaction opt-out (Section 6(c), distinct from withdrawing the mandate entirely, Section
+4(b)); both AFA-exemption ceilings — were checked directly against the primary source already cited
+in `sim/world_model_constants.py`. Nothing needed correcting.
+
 **Known limitation:** the evaluation is entirely synthetic, and ground-truth labels are exact by
 construction rather than hand-annotated. `docs/world-model.md` documents every constant, its
 provenance tier, and the full list of ones we could not source.

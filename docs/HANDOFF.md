@@ -6,7 +6,10 @@ touching the repository.
 **Repo:** `C:\Users\ramki\Desktop\here\Razorpay` — also `github.com/ramkirangaruda/Razorpay`
 **Deadline:** 4 September 2026 (the original brief says 5 Sep; work to 4)
 **Event:** Razorpay AI Builder Internship 2026 buildathon, Track 3 — AI Revenue Recovery
-**State:** `main` at `42b0ba4`, working tree clean
+**State:** `main` at `2c67308`, working tree clean. **Every item on the original §5 list is
+now closed** (§5.1's optional live LLM run aside) — read §5 below before assuming there is
+undone work matching the original brief; if you find a genuine gap, it is new scope, not a
+leftover.
 **Tests:** 282 passing (`python -m pytest`) — 244 pre-existing + 20 for `app/executor.py`
 (16 always-on, 4 live-only against a real Razorpay test-mode account — 2 of which
 currently fail against an exhausted test-mode payment_link quota, see §7) + 13 for
@@ -278,12 +281,28 @@ describes.** If a regenerated page's numbers move (a constant changes, a seed ch
 quoted transcript and any inline figures in this doc need updating by hand — nothing
 regenerates it automatically the way the HTML pages regenerate themselves.
 
-### 5.5 Verify the RBI circular wording
+### 5.5 ~~Verify the RBI circular wording~~ — DONE, nothing needed correcting
 
-`EMANDATE_PREDEBIT_NOTICE` cites RBI/DPSS/2026-27/396, 21 April 2026 — 24h pre-transaction notice,
-₹15,000 AFA exemption ceiling (₹1,00,000 for insurance, mutual funds, credit card bills). **The exact
-wording has not been verified against the circular.** Do that before submission; the citation is
-load-bearing in the README and a judge from Razorpay will know it.
+Checked directly against the URL already cited as the primary source
+(`sim/world_model_constants.RBI_EMANDATE_2026`), cross-confirmed against several independent
+legal-publication summaries of the same circular. Every figure holds: circular number and date,
+the 24h pre-transaction notice, its required contents (merchant name, amount, debit date/time,
+mandate reference, debit reason), the per-transaction opt-out, and both AFA-exemption ceilings
+(₹15,000 general, ₹1,00,000 for insurance/mutual funds/credit card bills). The 24h-notice/opt-out
+requirement is Section 6(c) specifically; withdrawing the mandate entirely is a different right,
+Section 4(b) — that section-level precision is now in the Source's citation text in
+`sim/world_model_constants.py`.
+
+**A real, unrelated bug surfaced by actually running the generator:** `sim/gen_world_model_doc.py`
+had no explicit encoding on its `open()` call, and writing the Rupee sign on Windows (cp1252
+default) raised `UnicodeEncodeError`. Fixed with `encoding="utf-8"`. If you touch a renderer that
+writes a file, check it specifies an encoding — this project's default `open(..., "w")` calls do
+not, and only this one happened to contain a character that made the gap visible.
+
+**This closes every item on the original §5 list.** What remains is optional, not required:
+running `LLMClassifier` against the real Anthropic endpoint (§5.1, needs a key), and any further
+polish — e.g. wiring `AuditLog` into `sim/demo_live_trace.py` so the one real trace also prints its
+own audit rows (§5.3 flagged this as cheap and worthwhile, not required).
 
 ---
 

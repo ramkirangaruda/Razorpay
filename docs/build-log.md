@@ -501,3 +501,35 @@ this account's per-resource caps are, they are not shared across Orders and Paym
 against the exhausted quota until it resets or a fresh key is used, which is the correct,
 honest result for an exhausted external resource rather than something to paper over.
 Remaining: the RBI wording check (§5.5).
+
+---
+
+## 2026-09-01 (evening, continued) — the RBI check, and everything on the original list is closed
+
+Section 5.5, the last item. Checked `EMANDATE_PREDEBIT_NOTICE`'s citation
+(RBI/DPSS/2026-27/396, 21 April 2026) directly against the primary-source URL already in
+`sim/world_model_constants.py`, cross-confirmed by several independent legal-publication
+summaries of the same circular (Mondaq, TaxGuru, LexOrbis, SCC Times, IndiaLaw, among
+others). Every figure held: the 24h pre-transaction notice and its required contents, the
+per-transaction opt-out, and both AFA-exemption ceilings (₹15,000 general, ₹1,00,000 for
+insurance/mutual funds/credit card bills). Went one level deeper than the headline numbers
+and confirmed the opt-out specifically is Section 6(c), distinct from withdrawing the
+mandate entirely (Section 4(b), a different right that would be easy to conflate with it).
+Nothing needed correcting - the citation `sim/world_model_constants.py` already had was
+right; the section-level detail is now recorded alongside it so a future reader (or a
+Razorpay judge) does not have to re-derive it.
+
+Running the generator to confirm nothing downstream needed touching surfaced one real,
+unrelated bug: `sim/gen_world_model_doc.py`'s `open(args.out, "w")` had no explicit
+encoding, and writing the Rupee sign on Windows' cp1252 default raised
+`UnicodeEncodeError`. Latent since whenever this script was last run on a Windows host with
+that codepage default - fixed with `encoding="utf-8"`.
+
+**Every item on the original §5 checklist (the LLM arm, L3, `audit.py`, the demo
+walkthrough, the RBI check) is now done**, except the explicitly-optional live
+`LLMClassifier` run against the real Anthropic endpoint. What's left is genuinely new
+scope, not leftover work - `docs/HANDOFF.md`'s state header now says so explicitly, so a
+future session doesn't go looking for undone items that no longer exist.
+
+**Where it stands:** 282 tests, unchanged (documentation and one narrow encoding fix; no
+constant value changed, five-arm figures confirmed unaffected).
