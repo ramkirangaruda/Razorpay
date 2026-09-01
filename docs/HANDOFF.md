@@ -6,37 +6,28 @@ touching the repository.
 **Repo:** `C:\Users\ramki\Desktop\here\Razorpay` — also `github.com/ramkirangaruda/Razorpay`
 **Deadline:** 4 September 2026 (the original brief says 5 Sep; work to 4)
 **Event:** Razorpay AI Builder Internship 2026 buildathon, Track 3 — AI Revenue Recovery
-**State:** `main` at `2a2d3ee`, pushed, working tree clean apart from line-ending noise (see §0)
-**Tests:** 231 passing (`python -m pytest`)
+**State:** `main` at `944b86b`, working tree clean
+**Tests:** 244 passing (`python -m pytest`)
 
 ---
 
 ## 0. Do these first
 
-1. **Fix the line endings before anything else.** `git status` currently shows ~23 files modified
-   with 7082 insertions and 7082 deletions — identical counts, because it is pure CRLF/LF churn from
-   a Windows checkout of files written on Linux. It is not real change. Fix it once:
+1. **Run the suite and confirm 244 passing.** `pip install -r requirements.txt` then
+   `python -m pytest`. If it is not 244, stop and find out why before building anything.
 
-   ```
-   printf '* text=auto eol=lf\n' > .gitattributes
-   git add --renormalize .
-   git commit -m "chore: normalise line endings"
-   ```
+2. **Run the arms and confirm five of them, including `D_backstop_llm`.**
+   `python -m sim.run_arms --n 120 --seed 42`. If arm D is missing,
+   `sim/data/l1_classifications_seed42.json` did not come through — `CachedLLMClassifier`
+   degrades to the decision table rather than failing, so its absence is silent. Every LLM
+   figure in the README depends on that file.
 
-   Until this is done every diff is unreadable and every commit is noise.
+3. **Read `docs/build-log.md` from the 1 September entries down.** It records three wrong turns
+   from that day and why they were wrong. All three are cheap to repeat.
 
-2. **Run the suite and confirm 231 passing.** `pip install -r requirements.txt` then
-   `python -m pytest`. If it is not 231, stop and work out why before building anything.
-
-3. **Read `docs/build-log.md` from the 1 September entries down.** It records two wrong turns from
-   that day and why they were wrong. Both are the kind of mistake that is cheap to repeat.
-
-4. **Push early and often.** The single biggest risk this project has already survived: the day-2
-   L2 policy gate sat unpushed on one laptop for nine days, and a session that cloned from GitHub
-   concluded the work did not exist and rebuilt it in parallel. Do not let the remote fall behind
-   again.
-
----
+4. **Push after every self-contained piece of work.** The biggest risk this project has already
+   survived: the day-2 policy gate sat unpushed on one laptop for nine days, and a session that
+   cloned from GitHub concluded the work did not exist and rebuilt it in parallel.
 
 ## 1. What Backstop is
 
@@ -121,11 +112,29 @@ is dominated by losses no policy could prevent.
 | Do nothing (reference) | ₹0 | 0 | 0 | 0 |
 | A — Naive (Razorpay default) | ₹2,161,735 | 80 | 280 | 74 |
 | B — Rules only | ₹2,000,191 | 78 | 157 | 65 |
-| C — Backstop | ₹1,926,991 | 73 | 145 | 64 |
+| C — Backstop (table classifier) | ₹1,926,991 | 73 | 145 | 64 |
+| **D — Backstop + LLM** | **₹2,006,152** | 71 | **137** | **61** |
 
-**Backstop takes 89% of the naive baseline's value on 52% of the attempts and 86% of the contacts.
+Each arm differs from the one above by exactly one component, so the comparison isolates what each
+change bought. B→C is the expected-value layer with the classifier fixed; C→D is the classifier with
+the economics fixed.
+
+**Backstop takes 93% of the naive baseline's value on 49% of the attempts and 86% of the contacts.
 It does not beat the baseline on raw value, and nothing in the repo is arranged to suggest it does.**
 Keep it that way. The deliverable is the frontier plus the breakeven threshold, not a win claim.
+
+**What the model bought.** 83% classification accuracy against the table's 78% — but the aggregate
+is the least useful cut. Clean payloads 100/100, context-dependent 100/100, ambiguous **52/38**. The
+whole advantage localises to one thing: where `reason` is null but `source` and `step` survive,
+**47% against 7%**. Where the structured reason survives both are perfect; where nothing survives
+both sit at the base rate.
+
+**And the finding worth protecting:** arm D initially *lost* to arm C despite classifying better.
+The model's per-case buckets are more dispersed than the table's class-level mapping, and
+`ScoreContext` reads the bucket with no view of confidence — so a guess was trusted as much as a
+certainty. Gating the bucket on the model's own confidence (HIGH 100%, MEDIUM 76%, LOW 20%) turned a
+₹45k loss into a ₹79k win. **Better classification did not by itself produce more money.** Do not
+remove `trust_bucket_below_confidence=False`; `test_confidence_gating_pays_for_itself` guards it.
 
 **Veto rate, split by basis** — Backstop's 35 vetoes are *all* `REGULATORY` (every one
 `QUIET_HOURS`). Rules-only takes 6 `BACKSTOP` firings that the EV layer avoids entirely. That is the
@@ -164,29 +173,20 @@ percent.*
 
 In priority order. If time compresses, hold this order.
 
-### 5.1 The LLM arm — highest value, currently the biggest hole
+### 5.1 ~~The LLM arm~~ — DONE, but one thing remains
 
-**Nothing in this repo has ever run a language model.** Arms B and C both use `LookupClassifier`,
-which makes A/B/C a clean ablation of the expected-value layer with the classifier held constant —
-a well-controlled experiment, and honest, but it means **the value of an LLM over a decision table
-is unmeasured and is claimed nowhere.** For an *AI* buildathon that gap is conspicuous.
+Measured on 1 September; see §4 and the build log. `CachedLLMClassifier` replays a recording so the
+arm reproduces.
 
-`app/classifier.py` already contains `LLMClassifier`, the prompt, and the structured-output contract
-with schema validation and retry. It needs an API key and a run.
+**What is still open:** the recording was produced by Claude reading the payloads directly, not by
+`app/classifier.LLMClassifier` calling the Anthropic API. That class is written, prompted and
+schema-validated, but **has never executed against the real endpoint.** If an API key becomes
+available, run it and confirm the live path works — the interesting number is the schema-rejection
+rate, which is a reportable fact about model reliability in a money-movement path. Do not overwrite
+the existing recording with a live run without keeping both; the README's figures cite the recording.
 
-- `pip install anthropic`, put `ANTHROPIC_API_KEY` in `.env`. **Verify `.env` is gitignored before
-  the first commit that touches this** — it is currently listed, confirm it.
-- Add a fourth arm, `D_backstop_llm`, to `sim/run_arms.build_arms()`.
-- Score it against `ground_truth.true_class`, **split by batch bucket**: CLEAN (48 cases),
-  AMBIGUOUS (42), CONTEXT (30). `ground_truth.lookup_table_would_classify_correctly` is already
-  recorded per case so the table's accuracy is directly comparable.
-- **Report that rules-only ties on the clean 40%.** "The model adds nothing on 40% of traffic, and
-  here is the 60% where it does" is far more convincing than a claimed uniform win, and the ablation
-  would expose the smoothing anyway.
-- Log the schema-rejection rate. It is a reportable number about model reliability in a
-  money-movement path.
-- Free artifact while you are here: a calibration plot of predicted bucket against realised recovery
-  rate. Cheap, and it directly answers "is your model actually calibrated?"
+A calibration plot (predicted bucket against realised recovery rate) is still unbuilt and is cheap —
+the data is all in `sim/data/l1_classifications_seed42.json` plus the batch's ground truth.
 
 ### 5.2 L3 — at least one real Razorpay test-mode call
 
@@ -260,6 +260,14 @@ load-bearing in the README and a judge from Razorpay will know it.
   one the whole pipeline can never take, however good its expected value. A weak proposer caps the
   entire system. This was a real bug: the lookup table returned one action per class forever and
   never reached for a payment link.
+- **A gitignored input silently degrades a result.** `sim/data/*.json` is ignored because batches
+  rebuild from a seed. The L1 recording does not — it is an INPUT, and `CachedLLMClassifier` falls
+  back to the decision table rather than failing when it is missing. Arm D would have quietly
+  vanished from a fresh clone while the README kept quoting its numbers. There is now a
+  `!sim/data/l1_classifications_seed42.json` exception; do not undo it.
+- **A model's confidence output is not decoration.** See §4. The scorer consumed the recovery bucket
+  with no view of how sure the model was, and that alone made a better classifier worth less than a
+  worse one.
 - **Structural zeroes are not estimates.** `CHANNEL_FIT` has retry-on-`SOFT_AUTH` at 0.0 because a
   retry cannot fix a failure where the customer never authorised anything. Sweeps must not move it.
   Ground truth once rolled the fresh-link hazard as the retry hazard and handed the naive arm a block
@@ -270,7 +278,7 @@ load-bearing in the README and a judge from Razorpay will know it.
 ## 8. Commands
 
 ```
-python -m pytest                                   # 231 tests
+python -m pytest                                   # 244 tests
 python -m sim.generate_batch --n 120 --seed 42
 python -m sim.run_arms --n 120 --seed 42
 python -m sim.run_arms --adversarial
@@ -283,6 +291,9 @@ python sim/world_model_constants.py --unsourced
 python sim/world_model_constants.py --breakeven
 python sim/world_model_constants.py --check
 ```
+
+Arm D reads `sim/data/l1_classifications_seed42.json`, which IS committed (it is a replay input, not
+a generated artifact). Everything else in `sim/data/` rebuilds from a seed and stays ignored.
 
 `docs/world-model.md` is **generated** — the prose is hand-written but the citation table, unsourced
 list, breakeven table and provenance counts are read from the registry at build time. Edit
@@ -317,6 +328,7 @@ tests/
   test_compliance_rules.py   interaction tests for the added rules
   test_scorer.py             including findings we would rather were untrue
   test_reported_claims.py    asserts the README's numbers against a live run
+  test_l1_measurement.py     pins what the model bought, including where it TIES
 docs/
   architecture.md  world-model.md (generated)  build-log.md  results/
 ```
