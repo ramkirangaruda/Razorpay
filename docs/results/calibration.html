@@ -1,0 +1,139 @@
+<!doctype html><html lang=en><head><meta charset=utf-8>
+<meta name=viewport content="width=device-width,initial-scale=1">
+<title>Backstop &mdash; calibration</title><style>
+:root{--bg:#f7f7f5;--fg:#1a1a18;--mut:#6b6b66;--line:#dcdcd6;--card:#fcfcfb}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){
+--bg:#161614;--fg:#ecebe6;--mut:#9b9a92;--line:#33322d;--card:#1a1a19}}
+:root[data-theme="dark"]{--bg:#161614;--fg:#ecebe6;--mut:#9b9a92;--line:#33322d;--card:#1a1a19}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--fg);
+font:14px/1.6 ui-sans-serif,-apple-system,"Segoe UI",Roboto,sans-serif}
+.wrap{max-width:820px;margin:0 auto;padding:40px 24px 72px}
+h1{font-size:23px;margin:0 0 6px;letter-spacing:-.01em}
+.sub{color:var(--mut);margin:0 0 26px;max-width:64ch}
+.fig{background:var(--card);border:1px solid var(--line);border-radius:7px;
+padding:18px 16px 10px;margin:0 0 12px}
+.cap{color:var(--mut);font-size:12.5px;margin:2px 0 26px;max-width:66ch}
+.grid{stroke:var(--grid,#e6e6e0);stroke-width:1}
+.axis{stroke:var(--line);stroke-width:1}
+.ax{fill:var(--mut);font-size:11px;font-family:ui-monospace,monospace}
+.axt{fill:var(--mut);font-size:12px}
+.tiny{fill:var(--mut);font-size:10.5px}
+.line{fill:none;stroke-width:2.5}
+.belief{fill:none;stroke:var(--mut);stroke-width:1.5;stroke-dasharray:4 4;opacity:.7}
+.beliefpt{fill:var(--mut);opacity:.7}
+circle{cursor:default}
+table{border-collapse:collapse;width:100%;font-size:13px;margin:8px 0 0}
+caption{text-align:left;color:var(--mut);font-size:12.5px;padding:0 0 8px}
+th,td{text-align:right;padding:6px 10px;border-bottom:1px solid var(--line)}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--mut);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.05em}
+td.num{font-family:ui-monospace,monospace}
+h2{font-size:15px;margin:34px 0 10px;text-transform:uppercase;letter-spacing:.08em;
+color:var(--mut);font-weight:600}
+p{max-width:66ch}
+code{background:var(--line);padding:1px 5px;border-radius:3px;
+font-family:ui-monospace,monospace;font-size:12.5px}
+</style></head><body><div class=wrap>
+<h1>Does a higher bucket mean a better chance</h1>
+<p class=sub>Realized recovery rate for cases landing in each ordinal bucket, table and
+model, against the agent&rsquo;s own belief for context. n=120, seed=42.
+0 case(s) had no recorded model classification and fell back to the
+table (see app/classifier.CachedLLMClassifier).</p>
+
+<div class=fig><svg viewBox="0 0 720 380" width="100%" role="img" aria-label="Realized recovery rate by predicted bucket, table and model, against the agent's own belief.">
+<line x1="60" y1="326.0" x2="690" y2="326.0" class="grid"/>
+<text x="51" y="330.0" class="ax" text-anchor="end">0%</text>
+<line x1="60" y1="251.0" x2="690" y2="251.0" class="grid"/>
+<text x="51" y="255.0" class="ax" text-anchor="end">25%</text>
+<line x1="60" y1="176.0" x2="690" y2="176.0" class="grid"/>
+<text x="51" y="180.0" class="ax" text-anchor="end">50%</text>
+<line x1="60" y1="101.0" x2="690" y2="101.0" class="grid"/>
+<text x="51" y="105.0" class="ax" text-anchor="end">75%</text>
+<line x1="60" y1="26.0" x2="690" y2="26.0" class="grid"/>
+<text x="51" y="30.0" class="ax" text-anchor="end">100%</text>
+<text x="60.0" y="346.0" class="ax" text-anchor="middle">VERY_LOW</text>
+<text x="217.5" y="346.0" class="ax" text-anchor="middle">LOW</text>
+<text x="375.0" y="346.0" class="ax" text-anchor="middle">MEDIUM</text>
+<text x="532.5" y="346.0" class="ax" text-anchor="middle">HIGH</text>
+<text x="690.0" y="346.0" class="ax" text-anchor="middle">VERY_HIGH</text>
+<line x1="60" y1="326" x2="690" y2="326" class="axis"/>
+<line x1="60" y1="26" x2="60" y2="326" class="axis"/>
+<path d="M60.0,320.0 L217.5,290.0 L375.0,221.0 L532.5,161.0 L690.0,71.0" class="belief"/>
+<circle cx="60.0" cy="320.0" r="3" class="beliefpt"><title>agent believes 2% for VERY_LOW</title></circle>
+<circle cx="217.5" cy="290.0" r="3" class="beliefpt"><title>agent believes 12% for LOW</title></circle>
+<circle cx="375.0" cy="221.0" r="3" class="beliefpt"><title>agent believes 35% for MEDIUM</title></circle>
+<circle cx="532.5" cy="161.0" r="3" class="beliefpt"><title>agent believes 55% for HIGH</title></circle>
+<circle cx="690.0" cy="71.0" r="3" class="beliefpt"><title>agent believes 85% for VERY_HIGH</title></circle>
+<text x="696.0" y="71.0" class="tiny" text-anchor="start">agent's belief</text>
+<path d="M60.0,326.0 L217.5,126.0 L375.0,116.9 L532.5,144.8 L690.0,26.0" class="line" style="stroke:#eb6834"/>
+<circle cx="60.0" cy="326.0" r="6.6" fill="#eb6834" fill-opacity="0.85"><title>Decision table / VERY_LOW: 0% of 3 recovered</title></circle>
+<circle cx="217.5" cy="126.0" r="9.6" fill="#eb6834" fill-opacity="0.85"><title>Decision table / LOW: 67% of 18 recovered</title></circle>
+<circle cx="375.0" cy="116.9" r="12.0" fill="#eb6834" fill-opacity="0.85"><title>Decision table / MEDIUM: 70% of 33 recovered</title></circle>
+<circle cx="532.5" cy="144.8" r="12.0" fill="#eb6834" fill-opacity="0.85"><title>Decision table / HIGH: 60% of 48 recovered</title></circle>
+<circle cx="690.0" cy="26.0" r="9.6" fill="#eb6834" fill-opacity="0.85"><title>Decision table / VERY_HIGH: 100% of 18 recovered</title></circle>
+<path d="M60.0,266.0 L217.5,126.0 L375.0,66.0 L532.5,129.1 L690.0,115.4" class="line" style="stroke:#1baf7a"/>
+<circle cx="60.0" cy="266.0" r="7.0" fill="#1baf7a" fill-opacity="0.85"><title>Model (recorded) / VERY_LOW: 20% of 5 recovered</title></circle>
+<circle cx="217.5" cy="126.0" r="10.2" fill="#1baf7a" fill-opacity="0.85"><title>Model (recorded) / LOW: 67% of 21 recovered</title></circle>
+<circle cx="375.0" cy="66.0" r="9.0" fill="#1baf7a" fill-opacity="0.85"><title>Model (recorded) / MEDIUM: 87% of 15 recovered</title></circle>
+<circle cx="532.5" cy="129.1" r="12.0" fill="#1baf7a" fill-opacity="0.85"><title>Model (recorded) / HIGH: 66% of 32 recovered</title></circle>
+<circle cx="690.0" cy="115.4" r="12.0" fill="#1baf7a" fill-opacity="0.85"><title>Model (recorded) / VERY_HIGH: 70% of 47 recovered</title></circle>
+<text x="375" y="368" class="axt" text-anchor="middle">predicted bucket (ordinal)</text>
+<text x="14" y="176" class="axt" text-anchor="middle" transform="rotate(-90 14 176)">realized recovery rate</text>
+</svg></div>
+<p class=cap>Marker size is n for that bucket &mdash; several buckets are thin at n=120,
+so read the table below alongside the picture rather than the picture alone. The dashed
+grey line is the agent&rsquo;s own belief (world_model_constants.P_RECOVERY_BY_BUCKET),
+shown for context and not as a target: that constant&rsquo;s own comment calls it the
+probability of recovery on the NEXT SINGLE attempt, while &ldquo;realized&rdquo; here means
+recoverable at all, by retry or by link, within the simulation&rsquo;s retry horizon &mdash;
+the same definition sim/generate_batch.py&rsquo;s own summary line uses. Those are related
+but not identical quantities, so this plot is a check on ORDERING (does a higher bucket
+predict a higher chance), not on exact probability calibration.</p>
+
+<table><caption>n and realized rate per bucket. A blank cell means no case landed in that bucket for that classifier.</caption><tr><th>bucket</th><th>agent's belief</th><th>table: n</th><th>table: realized</th><th>model: n</th><th>model: realized</th></tr>
+<tr><td>VERY_LOW</td><td class='num'>2%</td><td class='num'>3</td><td class='num'>0%</td><td class='num'>5</td><td class='num'>20%</td></tr>
+<tr><td>LOW</td><td class='num'>12%</td><td class='num'>18</td><td class='num'>67%</td><td class='num'>21</td><td class='num'>67%</td></tr>
+<tr><td>MEDIUM</td><td class='num'>35%</td><td class='num'>33</td><td class='num'>70%</td><td class='num'>15</td><td class='num'>87%</td></tr>
+<tr><td>HIGH</td><td class='num'>55%</td><td class='num'>48</td><td class='num'>60%</td><td class='num'>32</td><td class='num'>66%</td></tr>
+<tr><td>VERY_HIGH</td><td class='num'>85%</td><td class='num'>18</td><td class='num'>100%</td><td class='num'>47</td><td class='num'>70%</td></tr>
+</table>
+
+<h2>What this says</h2>
+<p><b>The table orders cleanly; the model does not, and that is worth stating plainly rather
+than smoothing over.</b> The table's realized rate is close to monotonic &mdash; VERY_LOW
+0% up to VERY_HIGH 100%,
+with one dip at HIGH (60%, below MEDIUM's
+70%). The model's is not: its OWN peak is MEDIUM at
+87%, not VERY_HIGH, which realizes lower
+(70%) and sits close to LOW (67%).
+A reader relying on the model's recovery_bucket to rank &ldquo;how good does this look&rdquo;
+at the top end would be misled by it here.</p>
+<p>This is a different axis from the 83%-vs-78% classification accuracy reported elsewhere
+in this repo (README, docs/build-log.md) &mdash; that number is about getting the failure
+CLASS right; this one is about whether the recovery_bucket ESTIMATE, once a class is
+assigned, actually orders realized outcomes. Getting the first right does not guarantee the
+second, and this batch shows the model doing better on the first and worse on the second at
+the top of the range. Both are true, and un-averaged, on purpose.</p>
+<p>Some of the ordering noise is explained by the gap the module docstring flags: the
+bucket is meant to rank a SINGLE-attempt hazard, but &ldquo;realized&rdquo; here is recovery
+within a 6-attempt horizon, and those compound differently per class &mdash;
+HIGH is dominated by SOFT_FUNDS; MEDIUM mixes SOFT_LIMIT (retryable) with SOFT_AUTH
+(link-only, at MEASURED_AUTH_HAZARD_1), and a class with a lower single-attempt hazard but
+more eligible attempts can out-realize one with a higher hazard and fewer effective tries.
+That explains the table's one dip. It does not obviously explain why the model's VERY_HIGH
+underperforms its own MEDIUM, since both classifiers are ranking the same underlying classes
+against the same horizon &mdash; the more likely explanation there is that the model spreads
+a wider, less selective set of cases into VERY_HIGH than the table does (n=47
+against the table's n=18), diluting the bucket with cases the
+table would not have put there.</p>
+<p>Where a bucket is thin (single digits, or VERY_LOW's table n=3), its point is not a
+reliable estimate of anything and the table above says so honestly rather than the chart
+implying otherwise by drawing a confident line through it anyway.</p>
+<p style="color:var(--mut);font-size:12.5px;margin-top:32px;border-top:1px solid var(--line);padding-top:14px">
+Generated by <code>sim/render_calibration.py</code>. Table bucket predictions come from
+running <code>LookupClassifier</code> fresh over the batch (deterministic, no recording
+needed); model bucket predictions replay <code>sim/data/l1_classifications_seed42.json</code>
+via <code>CachedLLMClassifier</code>, the same recording every other measured LLM figure in
+this repo cites.</p>
+</div></body></html>
