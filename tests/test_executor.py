@@ -144,6 +144,58 @@ def test_fake_failure_carries_razorpays_real_field_names():
 
 
 # ---------------------------------------------------------------------------
+# The BadRequestError disambiguation - no credentials needed, no network call.
+# Found by a real failure: a live run on 1 September 2026 hit a test-mode
+# payment_link quota, and the original except clause treated it the same as
+# the one specific error it was written to catch (a reused reference_id),
+# silently mislabelling a genuine failure as a safe replay. Mocked here so
+# the fix stays proven without depending on actually exhausting the quota
+# again.
+# ---------------------------------------------------------------------------
+
+
+def test_a_non_duplicate_bad_request_error_propagates_rather_than_being_mislabelled(
+    monkeypatch,
+):
+    import razorpay
+
+    class _FakePaymentLink:
+        def create(self, *a, **k):
+            raise razorpay.errors.BadRequestError("test mode limit of 30 reached for payment_link")
+
+    class _FakeClient:
+        payment_link = _FakePaymentLink()
+
+    ex = RazorpayExecutor()
+    monkeypatch.setattr(ex, "_client", lambda: _FakeClient())
+
+    with pytest.raises(razorpay.errors.BadRequestError):
+        ex.execute(invoice_id(), 1, A.REQUEST_INSTRUMENT_UPDATE, 50_000)
+
+
+def test_the_actual_duplicate_reference_message_is_still_caught_and_replayed(monkeypatch):
+    import razorpay
+
+    class _FakePaymentLink:
+        def create(self, *a, **k):
+            raise razorpay.errors.BadRequestError(
+                "payment link with given reference_id: xyz already exists. "
+                "Please create a payment link with a different reference_id"
+            )
+
+    class _FakeClient:
+        payment_link = _FakePaymentLink()
+
+    ex = RazorpayExecutor()
+    monkeypatch.setattr(ex, "_client", lambda: _FakeClient())
+
+    result = ex.execute(invoice_id(), 1, A.REQUEST_INSTRUMENT_UPDATE, 50_000)
+
+    assert result.replayed is True
+    assert result.error["error_code"] == "BAD_REQUEST_ERROR"
+
+
+# ---------------------------------------------------------------------------
 # Live: RazorpayExecutor. Skipped without credentials. Three calls, proving
 # idempotency for real rather than assuming the fake's behaviour generalises.
 # ---------------------------------------------------------------------------

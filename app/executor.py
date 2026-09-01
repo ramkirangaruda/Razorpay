@@ -68,6 +68,14 @@ RETRY_ACTIONS = frozenset({A.RETRY_NOW, A.RETRY_SCHEDULED})
 CONTACT_ACTIONS = frozenset({A.REQUEST_INSTRUMENT_UPDATE})
 EXECUTABLE_ACTIONS = RETRY_ACTIONS | CONTACT_ACTIONS
 
+# Substring of Razorpay's actual live error message for a reused reference_id:
+# "payment link with given reference_id: ... already exists. Please create a
+# payment link with a different reference_id" (confirmed live, 1 September
+# 2026). Any OTHER BadRequestError - a rate limit, a test-mode quota, a bad
+# amount - must not be caught by the same branch and relabelled as a safe
+# replay; see the except clause below.
+_DUPLICATE_REFERENCE_MARKER = "already exists"
+
 
 def idempotency_key(invoice_id: str, attempt_no: int) -> str:
     """<=40 chars, Razorpay's own cap on receipt/reference_id. A 36-char UUID
@@ -269,6 +277,18 @@ class RazorpayExecutor:
                 }
             )
         except razorpay.errors.BadRequestError as e:
+            if _DUPLICATE_REFERENCE_MARKER not in str(e):
+                # Not the idempotency case - a real failure (rate limit, quota,
+                # bad amount, whatever). Re-raise rather than mislabelling it
+                # `replayed=True`: a caller reading that flag is trusting that
+                # nothing new happened and the earlier attempt's result still
+                # stands, which is only true for the one specific rejection
+                # this branch exists to catch. A live run on 1 September 2026
+                # hit exactly this - a test-mode payment_link quota error
+                # (`ServerError`, not even this exception type) surfaced
+                # alongside a rate-limited `BadRequestError`, and the original
+                # version of this method silently called both "replayed".
+                raise
             return self._duplicate_result(e, now)
         return ExecutionResult(
             outcome=AttemptOutcome.PENDING,
