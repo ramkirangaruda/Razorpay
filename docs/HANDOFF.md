@@ -6,9 +6,10 @@ touching the repository.
 **Repo:** `C:\Users\ramki\Desktop\here\Razorpay` — also `github.com/ramkirangaruda/Razorpay`
 **Deadline:** 4 September 2026 (the original brief says 5 Sep; work to 4)
 **Event:** Razorpay AI Builder Internship 2026 buildathon, Track 3 — AI Revenue Recovery
-**State:** `main` at `a1163d4`, working tree clean
-**Tests:** 280 passing (`python -m pytest`) — 244 pre-existing + 18 for `app/executor.py`
-(15 always-on, 3 live-only against a real Razorpay test-mode account) + 13 for
+**State:** `main` at `42b0ba4`, working tree clean
+**Tests:** 282 passing (`python -m pytest`) — 244 pre-existing + 20 for `app/executor.py`
+(16 always-on, 4 live-only against a real Razorpay test-mode account — 2 of which
+currently fail against an exhausted test-mode payment_link quota, see §7) + 13 for
 `app/audit.py` + 5 for `sim/render_calibration.py`; see §5.1–§5.3 below and
 `docs/build-log.md`'s 1 September evening entries
 
@@ -267,11 +268,15 @@ a standalone module ready for a real caller, e.g. a future `app/api.py` or `sim/
 Wiring it into the live demo trace so a judge can see a real audit trail for the real
 declined payment would be a cheap, worthwhile follow-up if time allows — not required.
 
-### 5.4 Demo walkthrough
+### 5.4 ~~Demo walkthrough~~ — DONE
 
-A short document or script that walks a judge through: one invoice's trace → the frontier → the
-adversarial result. `docs/results/trace.html` and `docs/results/frontier.html` already exist and
-regenerate from the run.
+`docs/demo-walkthrough.md`, linked from the top of the README. Sequences five artifacts —
+frontier → synthetic per-bucket trace → the one real Razorpay decline (transcript quoted
+verbatim, not paraphrased) → the adversarial result → the calibration check — with what to
+look for in each, plus a two-minute version. **Do not let this drift from the artifacts it
+describes.** If a regenerated page's numbers move (a constant changes, a seed changes), the
+quoted transcript and any inline figures in this doc need updating by hand — nothing
+regenerates it automatically the way the HTML pages regenerate themselves.
 
 ### 5.5 Verify the RBI circular wording
 
@@ -332,13 +337,28 @@ load-bearing in the README and a judge from Razorpay will know it.
   retry cannot fix a failure where the customer never authorised anything. Sweeps must not move it.
   Ground truth once rolled the fresh-link hazard as the retry hazard and handed the naive arm a block
   of free recoveries.
+- **Catching an exception type is not the same as catching the specific error you meant.**
+  `RazorpayExecutor`'s payment-link path used to catch any `BadRequestError` from
+  `payment_link.create` and treat it as the one case it exists for — a reused `reference_id` — and
+  mark it `replayed=True`. A live run on 1 September 2026 hit a *rate-limited* `BadRequestError`
+  instead, and the old code silently reported "this was already handled" when nothing had happened
+  at all. Fixed by checking the message for Razorpay's actual duplicate-reference wording before
+  treating it as the idempotency case; see `app/executor.py`'s `_DUPLICATE_REFERENCE_MARKER`. If you
+  add another caught-exception branch anywhere that calls Razorpay, ask what ELSE could raise that
+  same exception type before assuming the catch only fires for the case you had in mind.
+- **This Razorpay test-mode account has a 30-payment_link cap**, discovered by exhausting it during
+  the same session that found the bug above. `test_live_payment_link_create_returns_a_real_link_id`
+  and `test_live_duplicate_payment_link_reference_id_is_rejected_by_razorpay` will fail with a
+  `ServerError: test mode limit of 30 reached for payment_link` until it resets or a fresh key is
+  used — that is an external constraint, not a regression. Order-creating live tests are unaffected.
+  Don't spend time "fixing" this; don't loop the live suite trying to make it pass either.
 
 ---
 
 ## 8. Commands
 
 ```
-python -m pytest                                   # 280 tests
+python -m pytest                                   # 282 tests (2 fail if the payment_link quota is exhausted - see §7)
 python -m sim.generate_batch --n 120 --seed 42
 python -m sim.run_arms --n 120 --seed 42
 python -m sim.run_arms --adversarial
@@ -398,7 +418,7 @@ tests/
   test_calibration.py        pins the calibration page's numbers, incl. the model's non-monotonic bucket order
   test_executor.py           L3 contract; 3 tests live-only, skipped without .env
 docs/
-  architecture.md  world-model.md (generated)  build-log.md  results/
+  architecture.md  world-model.md (generated)  build-log.md  demo-walkthrough.md  results/
 ```
 
 The world model and the agent's beliefs are **deliberately different functional forms** — saturating

@@ -441,3 +441,63 @@ going wrong.
 `LLMClassifier` run against the real Anthropic endpoint, which needs a key and is
 explicitly optional. Remaining: the demo walkthrough (§5.4) and the RBI wording check
 (§5.5).
+
+---
+
+## 2026-09-01 (evening, continued) — the demo walkthrough
+
+Section 5.4. No new renderer needed — `trace.html`, `frontier.html` and `calibration.html`
+already exist and already regenerate from the run. What was actually missing was five
+minutes' worth of narrative telling a judge which order to look at them in and what to
+notice in each, which `docs/demo-walkthrough.md` now is. Linked from the top of the
+README rather than left for someone to discover in `docs/`.
+
+The real end-to-end trace from earlier today (§5.2) gets its transcript quoted verbatim in
+the walkthrough rather than paraphrased, so a reader can check the specific numbers
+(`plink_TWmzYg3YvKaVgY`, the EV breakdown) against `sim/data/live_failure_capture.json`
+and `sim/demo_live_trace.py` directly instead of trusting a summary of them.
+
+**One thing flagged for future sessions, not fixed now, because fixing it would mean
+building the thing it's warning about:** the walkthrough's quoted transcript and inline
+figures do not regenerate themselves the way the HTML pages do. If a constant changes or
+the batch seed changes, someone has to notice the walkthrough went stale and update it by
+hand. Noted in `docs/HANDOFF.md` §5.4 rather than left implicit.
+
+**Where it stands:** 280 tests, unchanged (docs-only). Remaining: the RBI wording check
+(§5.5) — the last item on the original list.
+
+---
+
+## 2026-09-01 (evening, continued) — a bug the live suite found on its own
+
+Running the full suite again after the walkthrough (docs are cheap to re-verify, so it
+was routine) surfaced two failures in `tests/test_executor.py`'s live payment-link tests.
+Worth separating, because they turned out to be two different things.
+
+**The real bug:** `RazorpayExecutor`'s payment-link path caught any `BadRequestError` from
+`payment_link.create` and treated it as the one case that except clause was written for —
+a reused `reference_id` — marking the result `replayed=True` regardless of what actually
+caused the exception. One of today's two failures was a rate-limited `BadRequestError`
+from the volume of live testing this session has done, and the old code silently reported
+"this was already handled, nothing new happened" — false in both halves: nothing had
+happened, and the earlier attempt's result was not what actually stood. Fixed by checking
+the exception's message for Razorpay's actual duplicate-reference wording before treating
+it as the idempotency case; anything else now propagates as a real exception. Proven with
+two mocked tests rather than by depending on reproducing a rate limit on demand — this
+project already has one build-log entry about live behaviour not surviving a documentation
+summary (§5.2, the receipt/reference_id finding), and a bug here would have been the same
+mistake at one more remove: trusting that catching an exception TYPE means catching the
+specific ERROR meant, without checking.
+
+**Not a bug, just exhausted:** the OTHER failure was `ServerError: test mode limit of 30
+reached for payment_link` — a real, external cap on this Razorpay test-mode account,
+hit by the volume of payment links this session has created across `test_executor.py`'s
+live tests, `sim/demo_live_trace.py`'s runs, and ad-hoc debugging earlier today. There is
+nothing to fix in the codebase for this; `docs/HANDOFF.md` §7 now says so, so a future
+session does not spend time on it. Order-creating live tests are unaffected — whatever
+this account's per-resource caps are, they are not shared across Orders and Payment Links.
+
+**Where it stands:** 282 tests (280 + 2 new). 278 pass; the 2 payment-link live tests fail
+against the exhausted quota until it resets or a fresh key is used, which is the correct,
+honest result for an exhausted external resource rather than something to paper over.
+Remaining: the RBI wording check (§5.5).
