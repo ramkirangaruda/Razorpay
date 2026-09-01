@@ -11,6 +11,10 @@ a churned customer — and that a system pricing those costs does *less* than a 
 The name refers to the hard compliance rules sitting behind the economic decision, as a final
 safety net. They are not the product. The arithmetic is.
 
+**[Five-minute walkthrough →](docs/demo-walkthrough.md)** — the frontier, one invoice's trace,
+one real Razorpay decline run end to end, the adversarial result, and the calibration check,
+in the order that makes the argument.
+
 ---
 
 ## The headline, stated honestly
