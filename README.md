@@ -337,7 +337,8 @@ A system that only reports where it was too aggressive is telling half the story
 
 ```bash
 pip install -r requirements.txt
-python -m pytest                          # 288 tests, green (4 skip without a Razorpay test key; 2 more skip cleanly if the account's test-mode quota is exhausted)
+python -m pytest                          # 298 tests, green (4 skip without a Razorpay test key; 2 more skip cleanly if the account's test-mode quota is exhausted)
+uvicorn app.api:app --reload               # the live decision console, at http://localhost:8000
 python -m sim.generate_batch --n 120 --seed 42
 python -m sim.run_arms --n 120 --seed 42
 python -m sim.run_arms --adversarial
@@ -358,13 +359,34 @@ moves to `halted` and the customer is emailed a card-update link.
 
 ---
 
+## The live decision console
+
+`app/api.py` + `app/static/` — pick any of the 120 seeded cases, choose the table or the model
+classifier, and watch it move through L1 → L2b → L2a → L3 for real. Every number on screen comes
+from the actual `classify()` → `score()` → `evaluate()` chain the simulator and `demo_live_trace.py`
+already use — the frontend only renders what the API returns, nothing is reimplemented in
+JavaScript. L3 defaults to `FakeExecutor`, so clicking around does not spend Razorpay quota or
+create real orders; a checkbox opts into a real `RazorpayExecutor` call per decision, same posture
+as the one committed live trace.
+
+Styled in Razorpay's own visual language — the color tokens (`#305eff` blue, `#0d1a48` navy,
+`#009e5c` green) were read from `razorpay.com`'s live computed styles, not guessed — because this
+is a tool built for their ecosystem. It is **Backstop's own console, not a Razorpay product**, and
+says so in its own header; it does not reproduce Razorpay's actual site content, copy, or logo.
+
+No frontend framework and no build step, on purpose — same reasoning as the static report pages:
+`pip install -r requirements.txt` and one `uvicorn` command is the whole setup. FastAPI was already
+a stated dependency; this is the first thing that actually uses it.
+
+---
+
 ## Status
 
 **Built and tested:** L2a (policy gate, stopping rules), L2b (EV scorer), L1's interface and both
 implementations, the eval batch with ground truth, the three-arm simulator, both judge-facing
 artifacts, the measured LLM arm, L3 (`app/executor.py`) — live-verified against a real Razorpay
-test-mode account — and the append-only audit log writer (`app/audit.py`). 288 tests (149
-pre-existing on L2a, untouched).
+test-mode account — the append-only audit log writer (`app/audit.py`), and the live decision console
+(`app/api.py` + `app/static/`). 298 tests (149 pre-existing on L2a, untouched).
 
 **L3, and the one real trace.** `RazorpayExecutor` calls Razorpay's Orders and Payment Links APIs for
 real. Idempotency was checked against the live API rather than assumed from documentation, which
@@ -407,6 +429,8 @@ app/
   models.py           schema: invoices, attempts, append-only audit log
   executor.py         L3: idempotent Razorpay calls, live-verified
   audit.py            the append-only writer: no update/delete method, checked structurally
+  api.py               the live decision console - FastAPI, no framework on the frontend
+  static/               index.html / style.css / app.js - vanilla, no build step
 sim/
   world_model.py            the WORLD's truth — not the agent's beliefs
   world_model_constants.py  the AGENT's beliefs, with three-tier provenance

@@ -583,3 +583,59 @@ skipped with the reproduced reason instead of failing. Full suite: 288 tests, 28
 skip, 0 fail. `razorpay>=1.4` was already pinned in `requirements.txt` - checked, not
 assumed missing, and left alone. Five-arm run reconfirmed unaffected, as expected - this
 touches nothing outside `tests/test_executor.py` and documentation.
+
+---
+
+## 2026-09-02 — the live decision console (new scope)
+
+Requested directly: a frontend, styled in Razorpay's visual language, showing a case moving
+through the real pipeline live. Not on the original §5 list, and treated that way - no attempt
+to retrofit it as a leftover from the brief.
+
+**Scoped the brand question before writing any code, because it mattered.** "Replicate the
+Razorpay website" is ambiguous in a way that is not academic for a buildathon submission: a
+literal clone of `razorpay.com` - their actual copy, layout, logo - reads as impersonating a real
+company's site, buildathon context or not. Asked the project owner directly rather than guessing;
+the answer was a Backstop-branded console in Razorpay's visual language, clearly labelled as its
+own tool. The console's header says exactly that - "Built for the Razorpay AI Builder Internship
+2026 buildathon — not a Razorpay product" - and the brand colors (`#305eff` blue, `#0d1a48` navy,
+`#009e5c` green) were read from `razorpay.com`'s live computed styles on 2 September 2026, not
+copied from their markup or guessed from memory.
+
+**Section 6's "no dashboard with a framework" rule looked like it would block this, and didn't
+once the actual constraint was separated from the letter of the rule.** That rule exists so a
+judge cloning the repo never needs `npm install` to see a report. A live, click-through console
+is a genuinely different kind of artifact - it needs a running process either way - but the
+underlying constraint (no framework, no build step) still applies and still holds: FastAPI
+(already a stated dependency, unused until now) serving one plain HTML/CSS/vanilla-JS page.
+`pip install -r requirements.txt` plus one `uvicorn` command is the entire setup, same as every
+other artifact in this repo.
+
+**Every number the console shows is computed by the real pipeline, not reimplemented.**
+`POST /api/decide` calls the actual `classify()` -> `score()` -> `evaluate()` chain -
+`sim/run_arms.py`'s and `sim/demo_live_trace.py`'s functions, not new logic - and the frontend
+only renders the JSON response. `L3` defaults to `FakeExecutor`; a checkbox opts into a real
+`RazorpayExecutor` call per decision, so clicking through the case list during a demo cannot
+silently spend this account's already-tight Razorpay quota.
+
+**Verified interactively in the browser before calling it done, not just unit-tested.** Loaded the
+console, filtered the case list, selected a `HARD_RISK` case, and watched a real, informative
+result: L1 correctly classified it and proposed `ESCALATE_HUMAN`, L2b priced only `STOP_PERMANENT`
+as a candidate (`ESCALATE_HUMAN` is not in `PRICEABLE` - ceiling excludes it), L2a passed it
+through unchanged, and L3 correctly reported "not reached" with the actual reason. That is real
+pipeline behaviour surfacing through the UI, not a scripted demo path.
+
+**Two bugs caught in the process, both before commit:**
+- A relative static-files path (`"app/static"`) resolved against the server process's *working
+  directory*, not the file's own location - broke immediately under `uvicorn --app-dir`. Fixed
+  with an absolute path computed from `Path(__file__).resolve().parent`.
+- `httpx` is required by `fastapi.testclient.TestClient` (used in the new `tests/test_api.py`) but
+  is **not** a transitive dependency of `fastapi` itself - confirmed via `pip show fastapi`, which
+  lists no httpx. It was only importable in this dev environment because unrelated packages
+  (chromadb, openai, langsmith, ...) happen to pull it in. A fresh clone running only
+  `pip install -r requirements.txt` would have hit `ImportError` on the test suite. Added
+  `httpx>=0.27` to `requirements.txt` explicitly.
+
+**Where it stands:** 298 tests (288 + 10 new, all always-on - `TestClient` calls the app
+in-process, no server or credentials needed). Five-arm run unaffected, as expected - this touches
+nothing `sim/run_arms.py` depends on.

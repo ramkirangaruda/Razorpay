@@ -1,4 +1,4 @@
-# Backstop — handoff, 1 September 2026 (evening update)
+# Backstop — handoff, 2 September 2026
 
 You are picking up an in-flight buildathon project with a hard deadline. Read all of this before
 touching the repository.
@@ -6,15 +6,15 @@ touching the repository.
 **Repo:** `C:\Users\ramki\Desktop\here\Razorpay` — also `github.com/ramkirangaruda/Razorpay`
 **Deadline:** 4 September 2026 (the original brief says 5 Sep; work to 4)
 **Event:** Razorpay AI Builder Internship 2026 buildathon, Track 3 — AI Revenue Recovery
-**State:** `main` at `173b64c`, working tree clean. **Every item on the original §5 list is
-now closed** (§5.1's optional live LLM run aside) — read §5 below before assuming there is
-undone work matching the original brief; if you find a genuine gap, it is new scope, not a
-leftover.
-**Tests:** 288 passing/skipping cleanly (`python -m pytest`) — 244 pre-existing + 26 for
+**State:** `main` at `ecaae1b`, working tree clean. **Every item on the original §5 list is
+closed** (§5.1's optional live LLM run aside) — read §5 before assuming there is undone work
+matching the original brief; anything else, including §10 (the live decision console), is new
+scope the project owner asked for directly, not a leftover.
+**Tests:** 298 passing/skipping cleanly (`python -m pytest`) — 244 pre-existing + 26 for
 `app/executor.py` (22 always-on, 4 live-only against a real Razorpay test-mode account —
 2 of which currently SKIP, not fail, against an exhausted test-mode payment_link quota;
-see §7) + 13 for `app/audit.py` + 5 for `sim/render_calibration.py`; see §5.1–§5.3 below and
-`docs/build-log.md`'s 1-2 September entries
+see §7) + 13 for `app/audit.py` + 5 for `sim/render_calibration.py` + 10 for `app/api.py`;
+see §5.1–§5.3 and §10 below, and `docs/build-log.md`'s 1-2 September entries
 
 ---
 
@@ -445,6 +445,7 @@ tests/
   test_calibration.py        pins the calibration page's numbers, incl. the model's non-monotonic bucket order
   test_executor.py           L3 contract; 4 tests live-only (skip cleanly on missing keys,
                               network failure, or exhausted quota - see skip_on_environmental_failure())
+  test_api.py                 the live console's endpoints, in-process TestClient, no server needed
 docs/
   architecture.md  world-model.md (generated)  build-log.md  demo-walkthrough.md  results/
 ```
@@ -452,3 +453,45 @@ docs/
 The world model and the agent's beliefs are **deliberately different functional forms** — saturating
 vs geometric contact fatigue, linear vs exponential recency decay, per-customer vs flat LTV. That is
 the anti-circularity mitigation. Do not collapse them into one set of constants.
+
+---
+
+## 10. The live decision console (new scope, 2 September 2026)
+
+`app/api.py` (FastAPI) + `app/static/` (plain HTML/CSS/vanilla JS, no framework, no build step).
+Requested directly by the project owner, not part of the original brief — see the build log's
+2 September entry for the full reasoning. Run it with `uvicorn app.api:app --reload`.
+
+**Every number it shows comes from the real pipeline.** `POST /api/decide` runs a picked case
+through the actual `classify()` → `score()` → `evaluate()` chain — the same functions
+`sim/run_arms.py` and `sim/demo_live_trace.py` call — and the frontend only renders the JSON it gets
+back. Nothing about L1/L2b/L2a is reimplemented in JavaScript. If you ever find the console
+disagreeing with `sim/render_trace.py` on the same case, that is a real bug in one of the two
+wiring paths, not a rounding difference to shrug off.
+
+**Section 6's "do not build a dashboard with a framework" rule still holds, and this does not
+violate it.** That rule was written for the static judge-facing reports specifically, so a judge
+never needs `npm install` to look at one. The console is a different kind of artifact — genuinely
+interactive, needs a running process — but it keeps the same spirit: no React, no npm, no build
+step. `pip install -r requirements.txt` and one `uvicorn` command is the entire setup. If a future
+change to this console ever pulls in a JS framework or a build tool, that is a real regression
+against this rule, not an exception to it.
+
+**L3 defaults to `FakeExecutor`.** `execute_live` is an explicit, per-request opt-in
+(`RazorpayExecutor`) - the console must never spend this account's Razorpay quota or create a real
+order/payment link just because someone clicked through the case list. Do not change this default.
+
+**Styled in Razorpay's brand colors, checked live against `razorpay.com`'s own computed styles
+(2 September 2026), not guessed or copied from their actual page markup:** `#305eff` blue,
+`#0d1a48` navy, `#009e5c` green, `#f0f4f6`/`#f8fafc` neutrals - see `app/static/style.css`'s
+opening comment for the full palette and provenance. **This is deliberately Backstop's own console,
+not a Razorpay site clone** - it says so in its own header ("Built for the Razorpay AI Builder
+Internship 2026 buildathon — not a Razorpay product"), and it does not reproduce Razorpay's actual
+marketing copy, layout, or logo. Keep it that way if you touch the styling - color language is fair
+game, content and identity are not.
+
+**`httpx` is a hard dependency now**, even though nothing imports it directly - `fastapi.testclient.TestClient`
+(used by `tests/test_api.py`) requires it, and it is NOT a transitive dependency of `fastapi` itself
+(checked: `pip show fastapi` lists no httpx). It was only present in the dev environment via
+unrelated packages before this was caught - a fresh clone would have hit `ImportError` on the test
+suite without the explicit pin now in `requirements.txt`.

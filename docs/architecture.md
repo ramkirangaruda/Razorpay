@@ -170,7 +170,10 @@ real Razorpay test-mode account, including one full real end-to-end trace
 genuine payment link created in response. See `docs/HANDOFF.md` §5.2 and `docs/build-log.md`'s
 1 September evening entry for two places the live API's actual behaviour did not match its
 documentation, and `audit.py` (append-only writer, `AuditLog`, no update/delete method - checked
-structurally by `tests/test_audit.py`). 275 tests, of which the 149 on L2a are unmodified.
+structurally by `tests/test_audit.py`), and `api.py` + `static/` (a live decision console -
+FastAPI backend, plain HTML/CSS/vanilla-JS frontend, no framework or build step - new scope
+requested directly by the project owner on 2 September, not part of the original L1-L3/audit list;
+see `docs/HANDOFF.md` §10). 298 tests, of which the 149 on L2a are unmodified.
 
 **Not built:** nothing on the original L1/L2/L3/audit list. `audit.py` is not yet wired into
 `sim/run_arms.py`, which stays a pure in-memory harness with no DB by design - see §5.3 of
