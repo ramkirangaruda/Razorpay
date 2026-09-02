@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Backstop — decision console</title>
+<link rel="stylesheet" href="/style.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="brand">
+    <span class="mark" aria-hidden="true"></span>
+    <span class="wordmark">Backstop</span>
+    <span class="tagline">payment recovery console</span>
+  </div>
+  <div class="topbar-note">Built for the Razorpay AI Builder Internship 2026 buildathon — not a Razorpay product</div>
+</header>
+
+<div class="layout">
+  <aside class="sidebar">
+    <div class="sidebar-head">
+      <h2>Cases</h2>
+      <input id="filter" type="search" placeholder="Filter by issuer, reason…">
+    </div>
+    <div class="bucket-tabs" id="bucketTabs">
+      <button class="tab active" data-bucket="ALL">All</button>
+      <button class="tab" data-bucket="CLEAN">Clean</button>
+      <button class="tab" data-bucket="AMBIGUOUS">Ambiguous</button>
+      <button class="tab" data-bucket="CONTEXT">Context</button>
+    </div>
+    <ul class="case-list" id="caseList" aria-label="Failure cases"></ul>
+  </aside>
+
+  <main class="console">
+    <section class="panel case-detail" id="caseDetail">
+      <div class="empty-state">
+        <p>Pick a case on the left to see its failure payload.</p>
+      </div>
+    </section>
+
+    <section class="panel controls" id="controls" hidden>
+      <div class="control-row">
+        <label class="control">
+          <span>Classifier</span>
+          <select id="classifierSelect">
+            <option value="table">Decision table</option>
+            <option value="model">LLM (recorded)</option>
+          </select>
+        </label>
+        <label class="control number">
+          <span>Prior attempts</span>
+          <input id="attemptsInput" type="number" min="0" max="4" value="0">
+        </label>
+        <label class="control number">
+          <span>Prior contacts (30d)</span>
+          <input id="contactsInput" type="number" min="0" max="5" value="0">
+        </label>
+        <label class="control checkbox">
+          <input id="liveCheckbox" type="checkbox">
+          <span>Execute live against Razorpay <em>(real API call)</em></span>
+        </label>
+        <button id="runBtn" class="run-btn">Run decision</button>
+      </div>
+    </section>
+
+    <section class="pipeline" id="pipeline"></section>
+  </main>
+</div>
+
+<template id="stageTemplate">
+  <article class="stage">
+    <header class="stage-head">
+      <span class="stage-badge"></span>
+      <h3 class="stage-title"></h3>
+      <span class="stage-sub"></span>
+    </header>
+    <div class="stage-body"></div>
+  </article>
+</template>
+
+<script src="/app.js"></script>
+</body>
+</html>
