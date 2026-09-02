@@ -337,7 +337,7 @@ A system that only reports where it was too aggressive is telling half the story
 
 ```bash
 pip install -r requirements.txt
-python -m pytest                          # 282 tests (4 skipped without a Razorpay test key)
+python -m pytest                          # 288 tests, green (4 skip without a Razorpay test key; 2 more skip cleanly if the account's test-mode quota is exhausted)
 python -m sim.generate_batch --n 120 --seed 42
 python -m sim.run_arms --n 120 --seed 42
 python -m sim.run_arms --adversarial
@@ -363,7 +363,7 @@ moves to `halted` and the customer is emailed a card-update link.
 **Built and tested:** L2a (policy gate, stopping rules), L2b (EV scorer), L1's interface and both
 implementations, the eval batch with ground truth, the three-arm simulator, both judge-facing
 artifacts, the measured LLM arm, L3 (`app/executor.py`) — live-verified against a real Razorpay
-test-mode account — and the append-only audit log writer (`app/audit.py`). 282 tests (149
+test-mode account — and the append-only audit log writer (`app/audit.py`). 288 tests (149
 pre-existing on L2a, untouched).
 
 **L3, and the one real trace.** `RazorpayExecutor` calls Razorpay's Orders and Payment Links APIs for

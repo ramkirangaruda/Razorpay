@@ -6,15 +6,15 @@ touching the repository.
 **Repo:** `C:\Users\ramki\Desktop\here\Razorpay` — also `github.com/ramkirangaruda/Razorpay`
 **Deadline:** 4 September 2026 (the original brief says 5 Sep; work to 4)
 **Event:** Razorpay AI Builder Internship 2026 buildathon, Track 3 — AI Revenue Recovery
-**State:** `main` at `2c67308`, working tree clean. **Every item on the original §5 list is
+**State:** `main` at `173b64c`, working tree clean. **Every item on the original §5 list is
 now closed** (§5.1's optional live LLM run aside) — read §5 below before assuming there is
 undone work matching the original brief; if you find a genuine gap, it is new scope, not a
 leftover.
-**Tests:** 282 passing (`python -m pytest`) — 244 pre-existing + 20 for `app/executor.py`
-(16 always-on, 4 live-only against a real Razorpay test-mode account — 2 of which
-currently fail against an exhausted test-mode payment_link quota, see §7) + 13 for
-`app/audit.py` + 5 for `sim/render_calibration.py`; see §5.1–§5.3 below and
-`docs/build-log.md`'s 1 September evening entries
+**Tests:** 288 passing/skipping cleanly (`python -m pytest`) — 244 pre-existing + 26 for
+`app/executor.py` (22 always-on, 4 live-only against a real Razorpay test-mode account —
+2 of which currently SKIP, not fail, against an exhausted test-mode payment_link quota;
+see §7) + 13 for `app/audit.py` + 5 for `sim/render_calibration.py`; see §5.1–§5.3 below and
+`docs/build-log.md`'s 1-2 September entries
 
 ---
 
@@ -365,19 +365,27 @@ own audit rows (§5.3 flagged this as cheap and worthwhile, not required).
   treating it as the idempotency case; see `app/executor.py`'s `_DUPLICATE_REFERENCE_MARKER`. If you
   add another caught-exception branch anywhere that calls Razorpay, ask what ELSE could raise that
   same exception type before assuming the catch only fires for the case you had in mind.
-- **This Razorpay test-mode account has a 30-payment_link cap**, discovered by exhausting it during
-  the same session that found the bug above. `test_live_payment_link_create_returns_a_real_link_id`
-  and `test_live_duplicate_payment_link_reference_id_is_rejected_by_razorpay` will fail with a
-  `ServerError: test mode limit of 30 reached for payment_link` until it resets or a fresh key is
-  used — that is an external constraint, not a regression. Order-creating live tests are unaffected.
-  Don't spend time "fixing" this; don't loop the live suite trying to make it pass either.
+- **This Razorpay test-mode account has a 30-payment_link cap**, discovered by exhausting it on
+  1 September 2026 and confirmed still exhausted a full day later — it does not reset daily. This
+  used to make two live tests fail outright. As of 2 September 2026 it no longer does:
+  `tests/test_executor.py`'s `skip_on_environmental_failure()` converts the reproduced quota message
+  (`ServerError: "test mode limit of ... reached for ..."`) and a reproduced rate-limit message
+  (`BadRequestError: "Too many requests"`, triggered live by a 25-call burst the same day) into a
+  `pytest.skip`, not a failure — so `python -m pytest` is green on a clean clone even when this
+  account's quota is exhausted or the network is unreachable, and a red result keeps meaning "the
+  code is wrong." A genuine credential error or any other Razorpay error still fails loudly; the
+  function's own docstring has the exact line between the two, and
+  `test_skip_on_environmental_failure_reraises_an_unrelated_razorpay_error` /
+  `..._does_not_swallow_assertion_errors` guard that the catch stays narrow. **If a live test starts
+  skipping that you did not expect to, read the skip reason before assuming it's this quota** — the
+  message tells you which of the two reproduced signatures matched.
 
 ---
 
 ## 8. Commands
 
 ```
-python -m pytest                                   # 282 tests (2 fail if the payment_link quota is exhausted - see §7)
+python -m pytest                                   # 288 tests, green (skips cleanly if the payment_link quota is exhausted - see §7)
 python -m sim.generate_batch --n 120 --seed 42
 python -m sim.run_arms --n 120 --seed 42
 python -m sim.run_arms --adversarial
@@ -435,7 +443,8 @@ tests/
   test_reported_claims.py    asserts the README's numbers against a live run
   test_l1_measurement.py     pins what the model bought, including where it TIES
   test_calibration.py        pins the calibration page's numbers, incl. the model's non-monotonic bucket order
-  test_executor.py           L3 contract; 3 tests live-only, skipped without .env
+  test_executor.py           L3 contract; 4 tests live-only (skip cleanly on missing keys,
+                              network failure, or exhausted quota - see skip_on_environmental_failure())
 docs/
   architecture.md  world-model.md (generated)  build-log.md  demo-walkthrough.md  results/
 ```
