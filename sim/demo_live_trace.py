@@ -12,6 +12,12 @@ candidates, gates the result, and - if RAZORPAY_KEY_ID/RAZORPAY_KEY_SECRET are
 set - executes attempt 2 for real too, so both ends of the trace are genuine
 Razorpay responses rather than one real failure glued to a simulated recovery.
 
+Every stage also writes through app/audit.AuditLog, against a fresh in-memory
+SQLite DB (this is a one-shot script, not a long-lived server - there is
+nothing to share across runs). The resulting rows are printed at the end, so
+the trace this script produces has a real audit trail behind it, not just
+stdout - the same discipline app/api.py's console applies per decision.
+
 Usage:
     python -m sim.demo_live_trace
 """
@@ -21,13 +27,16 @@ from __future__ import annotations
 import json
 from datetime import datetime, timezone
 
+from app.audit import AuditLog, make_engine
 from app.classifier import LookupClassifier
 from app.executor import EXECUTABLE_ACTIONS, RazorpayExecutor
-from app.models import FailureClass
+from app.models import Attempt as AttemptRow
+from app.models import Customer, FailureClass, Invoice, InvoiceKind
 from app.policy import L1Proposal, evaluate
 from app.rule_basis import basis_of
 from app.scorer import Beliefs, ScoreContext, score
 from app.stopping_rules import PolicyContext
+from sqlalchemy.orm import Session
 
 CAPTURE_PATH = "sim/data/live_failure_capture.json"
 
@@ -126,33 +135,70 @@ def main() -> None:
     print("\n" + "=" * 78)
     print("L3 - attempt 2 (app/executor.RazorpayExecutor)")
     print("=" * 78)
+    exec_result = None
     if decision.permitted_action not in EXECUTABLE_ACTIONS:
         print(
             f"{decision.permitted_action.value} never reaches L3 - Backstop's "
             "decision after a real failure is to stop or escalate rather than "
             "call Razorpay again. No further API call is made."
         )
-        return
+    else:
+        try:
+            executor = RazorpayExecutor()
+            exec_result = executor.execute(
+                invoice_id=provenance["razorpay_order_id"],
+                attempt_no=2,
+                action=decision.permitted_action,
+                amount_paise=case["amount_paise"],
+            )
+            print(f"outcome:             {exec_result.outcome.value}")
+            print(f"razorpay_order_id:   {exec_result.razorpay_order_id}")
+            print(f"error:               {exec_result.error}")
+            print(
+                "\nBoth attempt 1 (the decline above) and attempt 2 (this call) are "
+                "real Razorpay test-mode API responses."
+            )
+        except RuntimeError as e:
+            # RAZORPAY_KEY_ID/SECRET not set - see app/executor.py.
+            print(f"Not executed live: {e}")
+        except Exception as e:  # noqa: BLE001 - a one-shot demo script, not
+            # a test: any live failure (an exhausted quota, a rate limit, a
+            # genuine API error) should still let L1/L2b/L2a's real work reach
+            # the audit trail below, not crash the script uninformatively.
+            print(f"L3 call failed live ({type(e).__name__}): {e}")
 
-    try:
-        executor = RazorpayExecutor()
-        exec_result = executor.execute(
-            invoice_id=provenance["razorpay_order_id"],
-            attempt_no=2,
-            action=decision.permitted_action,
+    # --- Audit trail ---------------------------------------------------------
+    # A fresh in-memory DB per run - this is a one-shot script, not a server,
+    # so there is no prior state to preserve and nothing to share across runs.
+    engine = make_engine()
+    with Session(engine) as audit_session:
+        customer = Customer(name="demo_live_trace")
+        audit_session.add(customer)
+        audit_session.flush()
+        invoice_row = Invoice(
+            customer_id=customer.id,
+            kind=InvoiceKind(case["kind"]),
             amount_paise=case["amount_paise"],
         )
-    except RuntimeError as e:
-        print(f"Not executed live: {e}")
-        return
+        audit_session.add(invoice_row)
+        audit_session.flush()
+        attempt_row = AttemptRow(invoice_id=invoice_row.id, attempt_no=2)
+        audit_session.add(attempt_row)
+        audit_session.flush()
 
-    print(f"outcome:             {exec_result.outcome.value}")
-    print(f"razorpay_order_id:   {exec_result.razorpay_order_id}")
-    print(f"error:               {exec_result.error}")
-    print(
-        "\nBoth attempt 1 (the decline above) and attempt 2 (this call) are "
-        "real Razorpay test-mode API responses."
-    )
+        audit_log = AuditLog(audit_session)
+        audit_log.classified(invoice_row.id, attempt_row.id, classification)
+        audit_log.policy_decision(invoice_row.id, attempt_row.id, decision)
+        if exec_result is not None:
+            audit_log.executed(invoice_row.id, attempt_row.id, exec_result)
+        audit_session.commit()
+
+        print("\n" + "=" * 78)
+        print("Audit trail (app/audit.AuditLog) - what this run actually wrote")
+        print("=" * 78)
+        for entry in audit_log.entries_for_invoice(invoice_row.id):
+            rule = f" ({entry.rule_name})" if entry.rule_name else ""
+            print(f"{entry.actor:6s} {entry.event_type.value}{rule}")
 
 
 if __name__ == "__main__":

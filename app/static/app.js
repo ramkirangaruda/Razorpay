@@ -157,6 +157,30 @@ function renderL3(l3, l3Note) {
   return fragment;
 }
 
+function renderAudit(entries) {
+  const { fragment, body } = stageEl("audit", "LOG", "Audit trail", `${entries.length} row${entries.length === 1 ? "" : "s"} · append-only`);
+  if (!entries.length) {
+    body.innerHTML = `<p class="skip-note">No rows written.</p>`;
+    return fragment;
+  }
+  const rows = entries
+    .map(
+      (e) => `<li>
+        <span class="audit-actor">${e.actor}</span>
+        <span class="audit-event">${e.event_type}</span>
+        ${e.rule_name ? `<span class="audit-rule">${e.rule_name}</span>` : ""}
+        <span class="audit-time">${new Date(e.created_at + "Z").toLocaleTimeString()}</span>
+      </li>`
+    )
+    .join("");
+  body.innerHTML = `
+    <ul class="audit-list">${rows}</ul>
+    <p class="skip-note">Written by <code>app.audit.AuditLog</code> to a real Customer/Invoice/Attempt row for
+    this decision - not a log line, an actual append-only table. See app/audit.py.</p>
+  `;
+  return fragment;
+}
+
 async function runDecision() {
   if (!state.selected) return;
   const btn = $("#runBtn");
@@ -182,12 +206,19 @@ async function runDecision() {
       return;
     }
     const data = await res.json();
+    const auditEntries = await fetch(`/api/audit/${encodeURIComponent(data.invoice_id)}`).then((r) => r.json());
 
     // Staggered reveal - the pipeline runs server-side in well under a
     // second, so this delay is purely presentational (each stage really did
     // already finish by the time we have `data`); it exists so a viewer can
     // read one stage before the next appears, not to fake latency.
-    const stages = [renderL1(data.l1), renderL2b(data.l2b), renderL2a(data.l2a), renderL3(data.l3, data.l3_note)];
+    const stages = [
+      renderL1(data.l1),
+      renderL2b(data.l2b),
+      renderL2a(data.l2a),
+      renderL3(data.l3, data.l3_note),
+      renderAudit(auditEntries),
+    ];
     stages.forEach((frag, i) => {
       setTimeout(() => pipeline.appendChild(frag), i * 220);
     });
@@ -200,7 +231,7 @@ async function runDecision() {
 }
 
 function stagesDelay() {
-  return 4 * 220 + 150;
+  return 5 * 220 + 150;
 }
 
 $("#filter").addEventListener("input", (e) => {

@@ -16,6 +16,16 @@ the RBI e-mandate window behave exactly as they would in production. Running
 this console late at night in IST is itself a demonstration of the policy
 gate working, not a quirk to route around.
 
+Every decision also writes real rows through app/audit.AuditLog, against a
+shared in-memory SQLite DB that lives for the process's lifetime - a real
+Customer/Invoice/Attempt is created per decision (AuditLogEntry's FKs need
+something real to point at, matching the schema's own contract) and
+GET /api/audit/{invoice_id} reads them back. This is a single-process demo
+tool: each request opens its own short-lived Session against one shared
+StaticPool-backed engine (the standard, safe pattern for a shared in-memory
+SQLite DB under a threaded server), not a claim this scales past one person
+clicking through cases at a time.
+
 Usage:
     uvicorn app.api:app --reload
 """
@@ -29,9 +39,15 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
+from sqlalchemy import create_engine
+from sqlalchemy.orm import Session
+from sqlalchemy.pool import StaticPool
 
+from app.audit import AuditLog
 from app.classifier import CachedLLMClassifier, LookupClassifier
 from app.executor import EXECUTABLE_ACTIONS, FakeExecutor, RazorpayExecutor
+from app.models import Attempt as AttemptRow
+from app.models import Base, Customer, Invoice, InvoiceKind
 from app.policy import L1Proposal, evaluate
 from app.rule_basis import basis_of
 from app.scorer import Beliefs, ScoreContext, score
@@ -45,6 +61,16 @@ app = FastAPI(title="Backstop console")
 _beliefs = Beliefs.from_constants()
 _classifiers = {"table": LookupClassifier(), "model": CachedLLMClassifier()}
 _cases: dict[str, dict] | None = None
+
+# One shared in-memory DB for the process's life. StaticPool + check_same_thread
+# is what makes a single in-memory SQLite DB safe to open a fresh short-lived
+# Session against from any request thread - the usual footgun (each new
+# connection to sqlite:///:memory: is normally its OWN empty DB) is exactly
+# what StaticPool avoids by reusing one underlying connection.
+_audit_engine = create_engine(
+    "sqlite:///:memory:", connect_args={"check_same_thread": False}, poolclass=StaticPool
+)
+Base.metadata.create_all(_audit_engine)
 
 
 def _batch() -> dict[str, dict]:
@@ -137,12 +163,13 @@ def decide(req: DecideRequest):
     )
     decision = evaluate(proposal, ctx)
 
+    exec_result = None
     l3 = None
     l3_note = None
     if decision.permitted_action in EXECUTABLE_ACTIONS:
         executor = RazorpayExecutor() if req.execute_live else FakeExecutor()
         try:
-            result = executor.execute(
+            exec_result = executor.execute(
                 invoice_id=case["invoice_id"],
                 attempt_no=req.attempts_so_far + 1,
                 action=decision.permitted_action,
@@ -150,11 +177,11 @@ def decide(req: DecideRequest):
             )
             l3 = {
                 "live": req.execute_live,
-                "outcome": result.outcome.value,
-                "razorpay_order_id": result.razorpay_order_id,
-                "razorpay_payment_id": result.razorpay_payment_id,
-                "error": result.error,
-                "replayed": result.replayed,
+                "outcome": exec_result.outcome.value,
+                "razorpay_order_id": exec_result.razorpay_order_id,
+                "razorpay_payment_id": exec_result.razorpay_payment_id,
+                "error": exec_result.error,
+                "replayed": exec_result.replayed,
             }
         except RuntimeError as e:
             l3_note = str(e)  # RAZORPAY_KEY_ID/SECRET not set - see app/executor.py
@@ -164,7 +191,36 @@ def decide(req: DecideRequest):
             "and asks Razorpay for nothing."
         )
 
+    # A short-lived Session per request, against the one shared engine - see
+    # the module docstring for why this is the safe pattern here. Commits as
+    # one unit at the end, matching AuditLog's own documented contract: a
+    # crash mid-request should not leave a committed audit row describing a
+    # decision whose Attempt update never landed.
+    with Session(_audit_engine) as audit_session:
+        customer = Customer(name=f"console demo ({case['case_id']})")
+        audit_session.add(customer)
+        audit_session.flush()
+        invoice_row = Invoice(
+            customer_id=customer.id,
+            kind=InvoiceKind(case["kind"]),
+            amount_paise=case["amount_paise"],
+        )
+        audit_session.add(invoice_row)
+        audit_session.flush()
+        attempt_row = AttemptRow(invoice_id=invoice_row.id, attempt_no=req.attempts_so_far + 1)
+        audit_session.add(attempt_row)
+        audit_session.flush()
+
+        audit_log = AuditLog(audit_session)
+        audit_log.classified(invoice_row.id, attempt_row.id, classification)
+        audit_log.policy_decision(invoice_row.id, attempt_row.id, decision)
+        if exec_result is not None:
+            audit_log.executed(invoice_row.id, attempt_row.id, exec_result)
+        audit_session.commit()
+        invoice_id = invoice_row.id
+
     return {
+        "invoice_id": invoice_id,
         "case": _case_summary(case),
         "l1": {
             "classifier": req.classifier,
@@ -200,6 +256,23 @@ def decide(req: DecideRequest):
         "l3_note": l3_note,
     }
 
+@app.get("/api/audit/{invoice_id}")
+def get_audit(invoice_id: str):
+    """The real, append-only trail app/audit.AuditLog wrote for one decision -
+    proof this console is not just displaying numbers but actually recording
+    them the way production would have to."""
+    with Session(_audit_engine) as audit_session:
+        entries = AuditLog(audit_session).entries_for_invoice(invoice_id)
+        return [
+            {
+                "event_type": e.event_type.value,
+                "actor": e.actor,
+                "rule_name": e.rule_name,
+                "payload": e.payload,
+                "created_at": e.created_at.isoformat(),
+            }
+            for e in entries
+        ]
 
 
 # Absolute, not "app/static" - a relative path resolves against the process's
