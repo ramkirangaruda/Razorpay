@@ -6,15 +6,16 @@ touching the repository.
 **Repo:** `C:\Users\ramki\Desktop\here\Razorpay` — also `github.com/ramkirangaruda/Razorpay`
 **Deadline:** 4 September 2026 (the original brief says 5 Sep; work to 4)
 **Event:** Razorpay AI Builder Internship 2026 buildathon, Track 3 — AI Revenue Recovery
-**State:** `main` at `ecaae1b`, working tree clean. **Every item on the original §5 list is
+**State:** `main` at `f1dcff2`, working tree clean. **Every item on the original §5 list is
 closed** (§5.1's optional live LLM run aside) — read §5 before assuming there is undone work
 matching the original brief; anything else, including §10 (the live decision console), is new
 scope the project owner asked for directly, not a leftover.
-**Tests:** 298 passing/skipping cleanly (`python -m pytest`) — 244 pre-existing + 26 for
+**Tests:** 302 passing/skipping cleanly (`python -m pytest`) — 244 pre-existing + 26 for
 `app/executor.py` (22 always-on, 4 live-only against a real Razorpay test-mode account —
 2 of which currently SKIP, not fail, against an exhausted test-mode payment_link quota;
-see §7) + 13 for `app/audit.py` + 5 for `sim/render_calibration.py` + 10 for `app/api.py`;
-see §5.1–§5.3 and §10 below, and `docs/build-log.md`'s 1-2 September entries
+see §7) + 13 for `app/audit.py` + 5 for `sim/render_calibration.py` + 14 for `app/api.py`
+(incl. the audit-trail wiring); see §5.1–§5.3 and §10 below, and `docs/build-log.md`'s
+1-2 September entries
 
 ---
 
@@ -265,11 +266,11 @@ committed audit row describing a decision whose `Attempt` update never landed.
 `test_append_never_commits_the_session` proves this by rolling back and finding nothing
 persisted.
 
-**Not wired into `sim/run_arms.py`.** The simulator is a pure in-memory harness with no DB
-and carries traces in memory by design (documented and accepted, not a gap) — `AuditLog` is
-a standalone module ready for a real caller, e.g. a future `app/api.py` or `sim/demo_live_trace.py`.
-Wiring it into the live demo trace so a judge can see a real audit trail for the real
-declined payment would be a cheap, worthwhile follow-up if time allows — not required.
+**Wired in as of 2 September 2026** — `app/api.py`'s `/api/decide` and `sim/demo_live_trace.py`
+both write through it now (§10). **Still not wired into `sim/run_arms.py`,** and that stays a
+deliberate scope line, not a gap: the simulator is a pure in-memory harness running thousands
+of fast, disposable trials across arms and seeds, and giving it a persistence layer would be
+adding a DB to a component whose entire point is not having one.
 
 ### 5.4 ~~Demo walkthrough~~ — DONE
 
@@ -385,7 +386,7 @@ own audit rows (§5.3 flagged this as cheap and worthwhile, not required).
 ## 8. Commands
 
 ```
-python -m pytest                                   # 288 tests, green (skips cleanly if the payment_link quota is exhausted - see §7)
+python -m pytest                                   # 302 tests, green (skips cleanly if the payment_link quota is exhausted - see §7)
 python -m sim.generate_batch --n 120 --seed 42
 python -m sim.run_arms --n 120 --seed 42
 python -m sim.run_arms --adversarial
@@ -445,7 +446,7 @@ tests/
   test_calibration.py        pins the calibration page's numbers, incl. the model's non-monotonic bucket order
   test_executor.py           L3 contract; 4 tests live-only (skip cleanly on missing keys,
                               network failure, or exhausted quota - see skip_on_environmental_failure())
-  test_api.py                 the live console's endpoints, in-process TestClient, no server needed
+  test_api.py                 the live console's endpoints incl. the audit trail, in-process TestClient
 docs/
   architecture.md  world-model.md (generated)  build-log.md  demo-walkthrough.md  results/
 ```
@@ -495,3 +496,15 @@ game, content and identity are not.
 (checked: `pip show fastapi` lists no httpx). It was only present in the dev environment via
 unrelated packages before this was caught - a fresh clone would have hit `ImportError` on the test
 suite without the explicit pin now in `requirements.txt`.
+
+**`app/audit.py` is wired in (2 September 2026, same day):** every `/api/decide` call persists a
+real `Customer`/`Invoice`/`Attempt` row against a shared in-memory SQLite DB (`StaticPool` +
+`check_same_thread=False`, one engine for the process's life, a fresh `Session` per request - the
+standard safe pattern for a shared in-memory DB under a threaded server) and writes through
+`AuditLog.classified`/`policy_decision`/`executed`. `GET /api/audit/{invoice_id}` reads it back;
+the console renders it as a fifth pipeline stage. `sim/demo_live_trace.py` got the same treatment
+and prints its own trail. **Do not remove the broadened `except Exception` around the live L3 call
+in `demo_live_trace.py`** - it used to catch only `RuntimeError` (missing credentials), and a live
+run the same day proved the gap: this account's exhausted payment_link quota raises
+`razorpay.errors.ServerError`, which is not a `RuntimeError`, and the old narrow catch would have
+crashed the script before the audit trail ever printed.

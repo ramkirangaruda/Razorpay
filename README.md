@@ -337,7 +337,7 @@ A system that only reports where it was too aggressive is telling half the story
 
 ```bash
 pip install -r requirements.txt
-python -m pytest                          # 298 tests, green (4 skip without a Razorpay test key; 2 more skip cleanly if the account's test-mode quota is exhausted)
+python -m pytest                          # 302 tests, green (4 skip without a Razorpay test key; 2 more skip cleanly if the account's test-mode quota is exhausted)
 uvicorn app.api:app --reload               # the live decision console, at http://localhost:8000
 python -m sim.generate_batch --n 120 --seed 42
 python -m sim.run_arms --n 120 --seed 42
@@ -369,6 +369,12 @@ JavaScript. L3 defaults to `FakeExecutor`, so clicking around does not spend Raz
 create real orders; a checkbox opts into a real `RazorpayExecutor` call per decision, same posture
 as the one committed live trace.
 
+A fifth stage shows the **audit trail**: each decision writes real rows through `app/audit.AuditLog`
+— a genuine `Customer`/`Invoice`/`Attempt` is created per decision and `GET /api/audit/{invoice_id}`
+reads the append-only log back — so what the console displays is proof the system recorded the
+decision, not just a rendering of the same response twice. `sim/demo_live_trace.py` writes and
+prints its own trail the same way.
+
 Styled in Razorpay's own visual language — the color tokens (`#305eff` blue, `#0d1a48` navy,
 `#009e5c` green) were read from `razorpay.com`'s live computed styles, not guessed — because this
 is a tool built for their ecosystem. It is **Backstop's own console, not a Razorpay product**, and
@@ -386,7 +392,7 @@ a stated dependency; this is the first thing that actually uses it.
 implementations, the eval batch with ground truth, the three-arm simulator, both judge-facing
 artifacts, the measured LLM arm, L3 (`app/executor.py`) — live-verified against a real Razorpay
 test-mode account — the append-only audit log writer (`app/audit.py`), and the live decision console
-(`app/api.py` + `app/static/`). 298 tests (149 pre-existing on L2a, untouched).
+(`app/api.py` + `app/static/`). 302 tests (149 pre-existing on L2a, untouched).
 
 **L3, and the one real trace.** `RazorpayExecutor` calls Razorpay's Orders and Payment Links APIs for
 real. Idempotency was checked against the live API rather than assumed from documentation, which

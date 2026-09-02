@@ -639,3 +639,41 @@ pipeline behaviour surfacing through the UI, not a scripted demo path.
 **Where it stands:** 298 tests (288 + 10 new, all always-on - `TestClient` calls the app
 in-process, no server or credentials needed). Five-arm run unaffected, as expected - this touches
 nothing `sim/run_arms.py` depends on.
+
+---
+
+## 2026-09-02 (continued) — AuditLog gets its first real callers
+
+Asked directly what to continue with once the console shipped; the answer was wiring
+`app/audit.py` in - it has existed since 1 September with full test coverage and zero callers.
+
+Every `/api/decide` call now persists a real `Customer`/`Invoice`/`Attempt` row (a shared
+in-memory SQLite DB - `StaticPool` + `check_same_thread=False`, one engine for the process's
+life, a fresh `Session` per request, which is the standard safe pattern for a shared in-memory
+DB under a threaded server rather than something improvised for this) and writes through
+`AuditLog.classified`/`policy_decision`/`executed`. `GET /api/audit/{invoice_id}` reads it back;
+the console renders it as a fifth stage. `sim/demo_live_trace.py` got the identical treatment.
+
+**Caught by actually running the demo script against the still-exhausted quota, not by
+inspection.** The script's L3 section only caught `RuntimeError` (missing credentials). Running
+it live today hit `razorpay.errors.ServerError` from the same payment_link quota that has been
+exhausted since 1 September - not a `RuntimeError` - and the narrow catch would have crashed the
+script before the new audit-logging code ever ran. Broadened it to catch any live failure,
+re-ran, and got exactly the right degraded behaviour: the script printed the live failure,
+logged CLASSIFIED and POLICY_PERMITTED, and correctly did NOT log an EXECUTED row, because
+nothing executed. That is the audit trail being honest about a real failure rather than a
+success path built only for the case where L3 works.
+
+Verified the console's fifth stage in the browser, not just via the API tests: ran a decision,
+confirmed the audit panel showed the same three real rows (`CLASSIFIED`, `POLICY_PERMITTED`,
+`EXECUTED`) with real timestamps that `get_page_text` reported, matching what the pipeline
+stages above it actually did.
+
+Four new tests in `tests/test_api.py`: the trail is written and readable back, it is scoped per
+invoice (two different decisions do not see each other's rows), `EXECUTED` appears only when L3
+was actually reached, and an invoice with no decisions returns an empty list rather than a 404 -
+an empty list is what a real append-only table gives you for "nothing happened here," not an
+error.
+
+**Where it stands:** 302 tests (298 + 4 new). Five-arm run reconfirmed unaffected - this touches
+`app/api.py`, `sim/demo_live_trace.py`, and their tests only.
