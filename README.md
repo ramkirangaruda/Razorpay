@@ -337,7 +337,7 @@ A system that only reports where it was too aggressive is telling half the story
 
 ```bash
 pip install -r requirements.txt
-python -m pytest                          # 302 tests, green (4 skip without a Razorpay test key; 2 more skip cleanly if the account's test-mode quota is exhausted)
+python -m pytest                          # 304 tests, green (4 skip without a Razorpay test key; 2 more skip cleanly if the account's test-mode quota is exhausted)
 uvicorn app.api:app --reload               # the live decision console, at http://localhost:8000
 python -m sim.generate_batch --n 120 --seed 42
 python -m sim.run_arms --n 120 --seed 42
@@ -392,7 +392,7 @@ a stated dependency; this is the first thing that actually uses it.
 implementations, the eval batch with ground truth, the three-arm simulator, both judge-facing
 artifacts, the measured LLM arm, L3 (`app/executor.py`) — live-verified against a real Razorpay
 test-mode account — the append-only audit log writer (`app/audit.py`), and the live decision console
-(`app/api.py` + `app/static/`). 302 tests (149 pre-existing on L2a, untouched).
+(`app/api.py` + `app/static/`). 304 tests (149 pre-existing on L2a, untouched).
 
 **L3, and the one real trace.** `RazorpayExecutor` calls Razorpay's Orders and Payment Links APIs for
 real. Idempotency was checked against the live API rather than assumed from documentation, which

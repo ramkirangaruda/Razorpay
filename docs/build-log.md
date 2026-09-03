@@ -677,3 +677,51 @@ error.
 
 **Where it stands:** 302 tests (298 + 4 new). Five-arm run reconfirmed unaffected - this touches
 `app/api.py`, `sim/demo_live_trace.py`, and their tests only.
+
+---
+
+## 2026-09-03 — a real bug, found by actually clicking through the console
+
+Asked to try the console out in the browser. Selected a CLEAN case, switched to the LLM
+(recorded) classifier, ran it - and the rationale that came back was LookupClassifier's generic
+"reason='X' maps to Y in the decision table" phrasing, not the rich, specific, natural-language
+text the recording actually holds for that case. Checked the recording file directly: the real
+row for that case has a long rationale citing exact payload fields, `recovery_bucket: VERY_HIGH`,
+and `classification_confidence: HIGH`. The console had shown `MEDIUM`. Two independent numbers
+disagreeing with the source of truth is not a rounding difference - something was silently wrong.
+
+**Root cause, reproduced deliberately before touching any code:** `CachedLLMClassifier`'s default
+`path` argument is `"sim/data/l1_classifications_seed42.json"` - relative. A quick repro
+(construct the classifier, `os.chdir()` away from the repo root, check `.available`) confirmed
+it: `available=False`, `0` records loaded. Under this console's own launch config
+(`uvicorn --app-dir Razorpay app.api:app`), the server process's cwd is not the repo root, so the
+path silently failed to resolve. `CachedLLMClassifier.__post_init__` catches
+`FileNotFoundError` and sets `_records = {}` rather than raising - a deliberate design choice so
+a regenerated batch degrades gracefully in the simulator rather than crashing - but the side
+effect here was that **every single "LLM (recorded)" request in the console had been silently
+replaying as the decision table**, with the UI still labelled "via LLM (recorded)," since the
+day the console shipped. Nothing in `tests/test_api.py` could have caught this: pytest already
+runs from the repo root, so the same relative path resolved by accident in every test run.
+
+Fixed the same way `STATIC_DIR` already was, one commit ago - an absolute path
+(`REPO_ROOT = Path(__file__).resolve().parent.parent`) rather than one that only happens to work
+depending on where the process was launched from. Verified against the exact failing case before
+and after in the browser: before the fix, `case_0071` showed bucket `MEDIUM` and the generic
+rationale; after, it showed the real `VERY_HIGH` and the actual recorded text, matching
+`sim/data/l1_classifications_seed42.json` byte for byte.
+
+Two new tests, deliberately not just "does the endpoint return 200": one checks the loaded
+classifier object's own state (`.available`, `len(._records) == 120`) directly, which is
+cwd-independent and would fail immediately if this regresses; the other checks a known case's
+`/api/decide` response for the real recorded rationale and bucket, rejecting the fallback's
+specific phrasing rather than just checking the field is non-empty.
+
+**The pattern worth naming:** this is the second bug this session found by actually running the
+thing rather than reading the code that was supposed to produce it - the payment-link
+rate-limit mislabelling and the RBI citation check both went the same way. A relative path that
+"works" only because of where you happen to run it from is invisible to code review and to a
+test suite that happens to share that same accidental cwd.
+
+**Where it stands:** 304 tests (302 + 2 new). Five-arm run reconfirmed unaffected -
+`sim/run_arms.py` has always constructed its own `CachedLLMClassifier` with a correct relative
+path from the repo root; this bug was specific to `app/api.py`'s wiring.

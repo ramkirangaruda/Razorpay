@@ -6,15 +6,16 @@ touching the repository.
 **Repo:** `C:\Users\ramki\Desktop\here\Razorpay` — also `github.com/ramkirangaruda/Razorpay`
 **Deadline:** 4 September 2026 (the original brief says 5 Sep; work to 4)
 **Event:** Razorpay AI Builder Internship 2026 buildathon, Track 3 — AI Revenue Recovery
-**State:** `main` at `f1dcff2`, working tree clean. **Every item on the original §5 list is
+**State:** `main` at `eceb7fc`, working tree clean. **Every item on the original §5 list is
 closed** (§5.1's optional live LLM run aside) — read §5 before assuming there is undone work
 matching the original brief; anything else, including §10 (the live decision console), is new
 scope the project owner asked for directly, not a leftover.
 **Tests:** 302 passing/skipping cleanly (`python -m pytest`) — 244 pre-existing + 26 for
 `app/executor.py` (22 always-on, 4 live-only against a real Razorpay test-mode account —
 2 of which currently SKIP, not fail, against an exhausted test-mode payment_link quota;
-see §7) + 13 for `app/audit.py` + 5 for `sim/render_calibration.py` + 14 for `app/api.py`
-(incl. the audit-trail wiring); see §5.1–§5.3 and §10 below, and `docs/build-log.md`'s
+see §7) + 13 for `app/audit.py` + 5 for `sim/render_calibration.py` + 16 for `app/api.py`
+(incl. the audit-trail wiring and the LLM-classifier-path fix); see §5.1–§5.3 and §10 below,
+and `docs/build-log.md`'s
 1-2 September entries
 
 ---
@@ -386,7 +387,7 @@ own audit rows (§5.3 flagged this as cheap and worthwhile, not required).
 ## 8. Commands
 
 ```
-python -m pytest                                   # 302 tests, green (skips cleanly if the payment_link quota is exhausted - see §7)
+python -m pytest                                   # 304 tests, green (skips cleanly if the payment_link quota is exhausted - see §7)
 python -m sim.generate_batch --n 120 --seed 42
 python -m sim.run_arms --n 120 --seed 42
 python -m sim.run_arms --adversarial
@@ -508,3 +509,18 @@ in `demo_live_trace.py`** - it used to catch only `RuntimeError` (missing creden
 run the same day proved the gap: this account's exhausted payment_link quota raises
 `razorpay.errors.ServerError`, which is not a `RuntimeError`, and the old narrow catch would have
 crashed the script before the audit trail ever printed.
+
+**A real bug found 3 September 2026 by clicking through the running console, not by reading the
+code:** `CachedLLMClassifier`'s default path (`"sim/data/l1_classifications_seed42.json"`) is
+relative and resolves against the server *process's* cwd, not the repo root - under
+`uvicorn --app-dir Razorpay ...` (this console's own launch config), that cwd is not the repo
+root, so the path never resolved. `__post_init__` swallows `FileNotFoundError` and sets
+`_records = {}` rather than raising (a deliberate choice for the simulator's robustness), so the
+console's "LLM (recorded)" option had been **silently replaying every decision as the table**,
+with the UI still labelled "via LLM (recorded)" and no error anywhere. Fixed with an absolute
+`REPO_ROOT = Path(__file__).resolve().parent.parent`, same fix shape as `STATIC_DIR`. **If you add
+another file-path default anywhere in `app/api.py`, make it absolute from the start** - a relative
+default that only happens to work because pytest runs from the repo root is exactly this bug
+waiting to recur, and `TestClient`-based tests cannot catch it (they run from the repo root too) -
+`tests/test_api.py::test_the_model_classifier_actually_loaded_its_recording` checks the loaded
+object's own state instead, which is cwd-independent, for exactly this reason.
