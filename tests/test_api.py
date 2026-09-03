@@ -115,6 +115,37 @@ def test_decide_table_vs_model_can_disagree_on_the_same_case():
     assert model_resp["l1"]["classifier"] == "model"
 
 
+def test_the_model_classifier_actually_loaded_its_recording():
+    """Found live, 3 September 2026: CachedLLMClassifier's relative default
+    path ("sim/data/...") resolves against the SERVER PROCESS's cwd, not the
+    repo root, and fails SILENTLY (FileNotFoundError caught internally,
+    _records becomes {}) - so under `uvicorn --app-dir Razorpay ...` from a
+    different cwd, every "model" request quietly replayed as the table with
+    the UI still labelled "via LLM (recorded)". TestClient alone could never
+    have caught this - pytest already runs from the repo root, so the
+    relative path resolved by accident in every previous test run. This
+    checks the loaded object's own state instead, which is cwd-independent."""
+    from app.api import _classifiers
+
+    model = _classifiers["model"]
+    assert model.available, "CachedLLMClassifier loaded zero records - see app/api.py's REPO_ROOT"
+    assert len(model._records) == 120
+
+
+def test_decide_with_model_classifier_returns_the_actual_recorded_rationale():
+    """The specific symptom the bug above produced: a table-style rationale
+    ("reason='X' maps to Y in the decision table") appearing under a
+    response labelled "model" - because the silent fallback IS LookupClassifier.
+    case_0071's real recorded rationale is long-form and cites specific
+    payload fields; a table-style fallback is short and formulaic, so this
+    is a reliable, specific check rather than a vague "is non-empty" one."""
+    resp = client.post("/api/decide", json={"case_id": "case_0071", "classifier": "model"}).json()
+    rationale = resp["l1"]["rationale"]
+    assert "maps to" not in rationale  # LookupClassifier's fallback phrasing
+    assert "is not in the decision table" not in rationale
+    assert resp["l1"]["recovery_bucket"] == "VERY_HIGH"  # the real recorded bucket
+
+
 # ---------------------------------------------------------------------------
 # The audit trail - every /api/decide call must write real, readable-back
 # AuditLog rows, not just return a JSON blob nothing persists.

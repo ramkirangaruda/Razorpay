@@ -59,7 +59,21 @@ N, SEED = 120, 42
 app = FastAPI(title="Backstop console")
 
 _beliefs = Beliefs.from_constants()
-_classifiers = {"table": LookupClassifier(), "model": CachedLLMClassifier()}
+
+# Absolute, not CachedLLMClassifier's relative default ("sim/data/...") - that
+# path resolves against the SERVER PROCESS's cwd, not the repo root, and
+# silently degrades to an empty _records dict (FileNotFoundError is caught
+# internally) rather than raising. Under `uvicorn --app-dir Razorpay ...` from
+# a different cwd, this made every "model" request in the console silently
+# replay as the table with no error anywhere - same class of bug as
+# STATIC_DIR below, caught the same way: by actually running it, not by
+# reading the code. REPO_ROOT is app/api.py's own grandparent, not the
+# process's cwd, so this is correct regardless of how/where the server starts.
+REPO_ROOT = Path(__file__).resolve().parent.parent
+_classifiers = {
+    "table": LookupClassifier(),
+    "model": CachedLLMClassifier(path=str(REPO_ROOT / "sim/data/l1_classifications_seed42.json")),
+}
 _cases: dict[str, dict] | None = None
 
 # One shared in-memory DB for the process's life. StaticPool + check_same_thread
