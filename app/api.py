@@ -32,6 +32,7 @@ Usage:
 
 from __future__ import annotations
 
+import uuid
 from dataclasses import asdict
 from datetime import datetime, timezone
 from pathlib import Path
@@ -44,7 +45,7 @@ from sqlalchemy.orm import Session
 from sqlalchemy.pool import StaticPool
 
 from app.audit import AuditLog
-from app.classifier import CachedLLMClassifier, LookupClassifier
+from app.classifier import REASON_TO_CLASS, CachedLLMClassifier, LookupClassifier
 from app.executor import EXECUTABLE_ACTIONS, FakeExecutor, RazorpayExecutor
 from app.models import Attempt as AttemptRow
 from app.models import Base, Customer, Invoice, InvoiceKind
@@ -52,7 +53,7 @@ from app.policy import L1Proposal, evaluate
 from app.rule_basis import basis_of
 from app.scorer import Beliefs, ScoreContext, score
 from app.stopping_rules import PolicyContext
-from sim.generate_batch import generate_batch
+from sim.generate_batch import ISSUERS, generate_batch
 
 N, SEED = 120, 42
 
@@ -94,8 +95,59 @@ def _batch() -> dict[str, dict]:
     return _cases
 
 
+class CustomCase(BaseModel):
+    """A viewer-built failure, run through the same classify() -> score() ->
+    evaluate() chain as the 120 seeded cases - nothing about the pipeline
+    treats a hand-built case differently from a batch one."""
+
+    reason: str | None = None
+    description: str = "Payment failed"
+    source: str = "bank"
+    step: str = "payment_authorization"
+    amount_inr: float = 1000.0
+    kind: str = "ONE_TIME"  # "ONE_TIME" | "RECURRING"
+    issuer: str = "HDFC"
+    instrument_type: str = "card"
+    mastercard_advice_code: str | None = None
+    successful_payments: int = 0
+    prior_failures_90d: int = 0
+
+
+def _case_from_custom(cc: CustomCase) -> dict:
+    return {
+        "case_id": f"custom_{uuid.uuid4().hex[:8]}",
+        "bucket": "CUSTOM",
+        "invoice_id": str(uuid.uuid4()),
+        "kind": cc.kind,
+        "amount_paise": int(round(cc.amount_inr * 100)),
+        "issuer": cc.issuer,
+        "instrument_type": cc.instrument_type,
+        "error": {
+            "code": "BAD_REQUEST_ERROR",
+            "description": cc.description,
+            "source": cc.source,
+            "step": cc.step,
+            "reason": cc.reason,
+            "field": None,
+            "metadata": {},
+        },
+        "mastercard_advice_code": cc.mastercard_advice_code or None,
+        "customer": {
+            "tenure_days": 0,
+            "prior_failures_90d": cc.prior_failures_90d,
+            "prior_contacts_30d": 0,
+            "days_since_last_contact": None,
+            "successful_payments": cc.successful_payments,
+            "typical_invoice_paise": int(round(cc.amount_inr * 100)),
+            "archetype": "custom",
+        },
+        "ambiguity": [] if cc.reason else ["missing_reason"],
+    }
+
+
 class DecideRequest(BaseModel):
-    case_id: str
+    case_id: str | None = None
+    custom_case: CustomCase | None = None
     classifier: str = "table"  # "table" | "model"
     attempts_so_far: int = 0
     contacts_so_far: int = 0
@@ -131,13 +183,40 @@ def get_case(case_id: str):
     return {**_case_summary(case), "customer": case["customer"], "ground_truth": case["ground_truth"]}
 
 
+@app.get("/api/reasons")
+def list_reasons():
+    """The real REASON_TO_CLASS table and issuer list, so the custom-case
+    form's dropdowns can't drift from what the decision table actually
+    recognises - a reason not in this list is exactly what exercises the
+    table's documented fallback (see LOOKUP_FALLBACK in app/classifier.py),
+    which the form deliberately allows by also offering an unmapped option."""
+    return {
+        "known_reasons": [{"reason": r, "class": fc.value} for r, fc in REASON_TO_CLASS.items()],
+        "issuers": ISSUERS,
+    }
+
+
 @app.post("/api/decide")
 def decide(req: DecideRequest):
     if req.classifier not in _classifiers:
         raise HTTPException(400, f"classifier must be 'table' or 'model', got {req.classifier!r}")
-    case = _batch().get(req.case_id)
-    if case is None:
-        raise HTTPException(404, f"unknown case_id {req.case_id!r}")
+
+    if req.custom_case is not None:
+        if req.classifier != "table":
+            raise HTTPException(
+                400,
+                "custom cases only support the decision table - CachedLLMClassifier has no "
+                "recording for a case_id outside the seeded batch and would silently replay "
+                "the table's own answer under the 'model' label, which is exactly the kind of "
+                "silent fallback this project doesn't paper over. Pick 'table'.",
+            )
+        case = _case_from_custom(req.custom_case)
+    else:
+        if not req.case_id:
+            raise HTTPException(400, "case_id is required unless custom_case is given")
+        case = _batch().get(req.case_id)
+        if case is None:
+            raise HTTPException(404, f"unknown case_id {req.case_id!r}")
 
     clf = _classifiers[req.classifier]
     state = {"attempts": req.attempts_so_far, "contacts": req.contacts_so_far}

@@ -83,7 +83,6 @@
 <div class="app-shell">
 <header class="topbar">
   <div class="brand">
-    <span class="mark" aria-hidden="true"></span>
     <span class="wordmark">Backstop</span>
     <span class="tagline">payment recovery console</span>
   </div>
@@ -93,7 +92,10 @@
 <div class="layout">
   <aside class="sidebar">
     <div class="sidebar-head">
-      <h2>Cases</h2>
+      <div class="sidebar-title-row">
+        <h2>Cases</h2>
+        <span class="case-count" id="caseCount"></span>
+      </div>
       <input id="filter" type="search" placeholder="Filter by issuer, reason…">
     </div>
     <div class="bucket-tabs" id="bucketTabs">
