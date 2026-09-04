@@ -4,9 +4,83 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Backstop — decision console</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@500;600;700;800&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="/style.css">
 </head>
-<body>
+<body class="story-mode">
+
+<div class="story" id="story" aria-hidden="false">
+  <div class="story-skip" id="storySkip" role="button" tabindex="0">Skip intro</div>
+
+  <section class="story-slide dots-bg active" data-slide="0">
+    <p class="story-eyebrow">The problem</p>
+    <h1 class="story-num">Most recovery systems<br>just keep trying.</h1>
+    <p class="story-sub">Card declined? Retry tomorrow. Retry the day after. Then email a
+      payment-update link. Every attempt is treated as free — no cost for the network fee it
+      triggers, the issuer trust it burns, or the customer it eventually pushes away.</p>
+  </section>
+
+  <section class="story-slide grad-bg" data-slide="1">
+    <p class="story-eyebrow">The thesis</p>
+    <h1 class="story-num">Every attempt has a price.<br>Backstop pays it correctly.</h1>
+    <p class="story-sub">Before it retries, contacts, or escalates, Backstop prices the action in
+      rupees — expected recovery, minus network penalties, minus issuer risk, minus the chance
+      this exact contact is the one that costs the customer. Stop isn't a special rule. It's just
+      the action that scores zero.</p>
+  </section>
+
+  <section class="story-slide dots-bg" data-slide="2">
+    <p class="story-eyebrow">How it works</p>
+    <h1 class="story-num story-num-sm">Four layers.<br>Each one can only say no.</h1>
+    <div class="story-pipeline">
+      <div class="story-pipe-stage" style="--d:0"><span>L1</span>Classify</div>
+      <div class="story-pipe-arrow" style="--d:1">→</div>
+      <div class="story-pipe-stage" style="--d:2"><span>L2b</span>Price</div>
+      <div class="story-pipe-arrow" style="--d:3">→</div>
+      <div class="story-pipe-stage" style="--d:4"><span>L2a</span>Gate</div>
+      <div class="story-pipe-arrow" style="--d:5">→</div>
+      <div class="story-pipe-stage" style="--d:6"><span>L3</span>Execute</div>
+      <div class="story-pipe-arrow" style="--d:7">→</div>
+      <div class="story-pipe-stage" style="--d:8"><span>LOG</span>Record</div>
+    </div>
+    <p class="story-sub">Each layer may only narrow what the previous layer proposed — veto it,
+      delay it, soften it. None of them can make the system do more than what already came
+      through. That's the actual safety mechanism, enforced in code, not just claimed in a
+      diagram.</p>
+  </section>
+
+  <section class="story-slide grad-bg" data-slide="3">
+    <p class="story-eyebrow">Measured, not claimed</p>
+    <div class="story-stats">
+      <div class="story-stat" style="--d:0"><span class="story-stat-num">93%</span><span class="story-stat-label">of the naive baseline's recovered value</span></div>
+      <div class="story-stat" style="--d:1"><span class="story-stat-num">49%</span><span class="story-stat-label">of the authorisation attempts</span></div>
+      <div class="story-stat" style="--d:2"><span class="story-stat-num">82%</span><span class="story-stat-label">of the customer contacts</span></div>
+    </div>
+    <p class="story-sub">It does not beat the naive baseline on raw ₹ recovered — and nothing here
+      is arranged to suggest otherwise. That's the trade this system is built to make, reported
+      honestly, on a seeded batch of 120 real failure cases.</p>
+  </section>
+
+  <section class="story-slide dots-bg cta-bg" data-slide="4">
+    <p class="story-eyebrow">Try it</p>
+    <h1 class="story-num">Now watch it decide.</h1>
+    <p class="story-sub">Pick any of 120 real payment failures. Watch the same pipeline that
+      produced these numbers run live — classification, pricing, the gate, the execution, the
+      audit trail. Nothing here is a mockup.</p>
+  </section>
+
+  <div class="story-nav">
+    <button class="story-btn ghost" id="storyBack">← Back</button>
+    <div class="story-dots" id="storyDots">
+      <span class="story-dot active"></span><span class="story-dot"></span><span class="story-dot"></span><span class="story-dot"></span><span class="story-dot"></span>
+    </div>
+    <button class="story-btn" id="storyNext">Next →</button>
+  </div>
+</div>
+
+<div class="app-shell">
 <header class="topbar">
   <div class="brand">
     <span class="mark" aria-hidden="true"></span>
@@ -66,6 +140,7 @@
     <section class="pipeline" id="pipeline"></section>
   </main>
 </div>
+</div><!-- /.app-shell -->
 
 <template id="stageTemplate">
   <article class="stage">

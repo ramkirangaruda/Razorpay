@@ -251,3 +251,59 @@ $("#bucketTabs").addEventListener("click", (e) => {
 $("#runBtn").addEventListener("click", runDecision);
 
 loadCases();
+
+// ---------------------------------------------------------------------
+// Story intro - a guided walkthrough shown once before the console
+// unlocks. Purely presentational state, kept separate from `state`
+// above (which is the console's own data). Progress persists in
+// localStorage so a returning viewer isn't forced through it again;
+// on first load `body` already carries the `story-mode` class from the
+// HTML itself, so there is no flash of the console before this runs.
+// ---------------------------------------------------------------------
+
+const storySlides = Array.from(document.querySelectorAll(".story-slide"));
+const storyDots = Array.from(document.querySelectorAll(".story-dot"));
+const storyBack = $("#storyBack");
+const storyNext = $("#storyNext");
+let storyIndex = 0;
+
+function showStorySlide(i) {
+  storyIndex = Math.max(0, Math.min(storySlides.length - 1, i));
+  storySlides.forEach((s, idx) => s.classList.toggle("active", idx === storyIndex));
+  storyDots.forEach((d, idx) => d.classList.toggle("active", idx === storyIndex));
+  storyBack.style.visibility = storyIndex === 0 ? "hidden" : "visible";
+  storyNext.textContent = storyIndex === storySlides.length - 1 ? "Enter the console →" : "Next →";
+}
+
+function endStory() {
+  document.body.classList.remove("story-mode");
+  try { localStorage.setItem("backstop_story_seen", "1"); } catch (e) { /* private mode etc. */ }
+}
+
+if (storySlides.length) {
+  let alreadySeen = false;
+  try { alreadySeen = localStorage.getItem("backstop_story_seen") === "1"; } catch (e) { /* ignore */ }
+
+  if (alreadySeen) {
+    document.body.classList.remove("story-mode");
+  } else {
+    showStorySlide(0);
+  }
+
+  storyNext.addEventListener("click", () => {
+    if (storyIndex === storySlides.length - 1) endStory();
+    else showStorySlide(storyIndex + 1);
+  });
+  storyBack.addEventListener("click", () => showStorySlide(storyIndex - 1));
+  $("#storySkip").addEventListener("click", endStory);
+  $("#storySkip").addEventListener("keydown", (e) => {
+    if (e.key === "Enter" || e.key === " ") endStory();
+  });
+
+  document.addEventListener("keydown", (e) => {
+    if (!document.body.classList.contains("story-mode")) return;
+    if (e.key === "ArrowRight") storyNext.click();
+    if (e.key === "ArrowLeft" && storyIndex > 0) storyBack.click();
+    if (e.key === "Escape") endStory();
+  });
+}
