@@ -1,6 +1,6 @@
 """
-The one real end-to-end trace docs/HANDOFF.md Section 5.2 asks for: a genuine
-Razorpay test-mode failure, run through the actual L1 -> L2b -> L2a pipeline,
+The one real end-to-end trace: a genuine Razorpay test-mode failure, run
+through the actual L1 -> L2b -> L2a pipeline,
 with L2a's permitted action then actually executed against Razorpay for real
 when it is executable - not a fabricated payload anywhere in the chain.
 

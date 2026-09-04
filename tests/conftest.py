@@ -1,8 +1,8 @@
 """
 Loads .env into os.environ before the test session starts, if the file exists.
 
-No new dependency for two lines of KEY=VALUE - .env is gitignored (see HANDOFF.md
-Section 6, "never commit an API key") and holds RAZORPAY_KEY_ID/RAZORPAY_KEY_SECRET
+No new dependency for two lines of KEY=VALUE - .env is gitignored (never commit an
+API key) and holds RAZORPAY_KEY_ID/RAZORPAY_KEY_SECRET
 for the live L3 tests in test_executor.py, and ANTHROPIC_API_KEY for a live L1 run
 if one is ever done. Never overwrites a variable already set in the environment.
 """

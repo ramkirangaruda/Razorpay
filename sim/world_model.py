@@ -1,7 +1,7 @@
 """
 The disclosed world model. Every constant here is documented in docs/world-model.md — this file
 is the executable form of that document, and the two must stay in sync (a divergence found while
-building belongs in docs/build-log.md, not a silent edit to either file).
+building is worth a comment explaining why, not a silent edit to either file).
 
 Naming convention (read the identifier, not a comment, to know the evidentiary status):
     MEASURED_*  -> grounded in a cited external source (docs/world-model.md §"Sources consulted")

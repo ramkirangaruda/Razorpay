@@ -1,6 +1,6 @@
 """
 The calibration plot: does a higher recovery_bucket predict a higher realized
-recovery rate. §5.1 of docs/HANDOFF.md called this "cheap" and it is - the
+recovery rate. This is cheap to check - the
 inputs already exist in sim/data/l1_classifications_seed42.json (via
 CachedLLMClassifier) and the batch's own ground truth.
 
@@ -248,7 +248,7 @@ with one dip at HIGH ({rates["table"]["HIGH"][0]:.0%}, below MEDIUM's
 A reader relying on the model's recovery_bucket to rank &ldquo;how good does this look&rdquo;
 at the top end would be misled by it here.</p>
 <p>This is a different axis from the 83%-vs-78% classification accuracy reported elsewhere
-in this repo (README, docs/build-log.md) &mdash; that number is about getting the failure
+in this repo (README) &mdash; that number is about getting the failure
 CLASS right; this one is about whether the recovery_bucket ESTIMATE, once a class is
 assigned, actually orders realized outcomes. Getting the first right does not guarantee the
 second, and this batch shows the model doing better on the first and worse on the second at
