@@ -378,8 +378,8 @@ class CachedLLMClassifier:
 
     READ THE PROVENANCE BLOCK in the JSON file before quoting any figure that
     comes out of this class. The recorded classifications were produced by
-    Claude reading only the fields a real L1 receives, in four separate fresh
-    contexts that had never seen the batch generator or the ground truth — that
+    a large language model reading only the fields a real L1 receives, in four
+    separate fresh contexts that had never seen the batch generator or the ground truth — that
     isolation is the whole reason the accuracy numbers mean anything, because
     whoever wrote the generator knows the answer key.
 

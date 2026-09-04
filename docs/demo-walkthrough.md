@@ -91,9 +91,8 @@ outcome: PENDING   razorpay_order_id: plink_TWmzYg3YvKaVgY   error: None
 
 **What to look for:** the reason field is `payment_failed` — Razorpay's mock bank's
 generic decline, not the specific `gateway_technical_error` the test card is documented to
-produce. That mismatch between documented and live behaviour is itself a recurring finding
-this session logged twice (see `docs/build-log.md`'s 1 September entries) rather than
-something smoothed over. L1 correctly flags the reason as unmapped and falls back
+produce. That mismatch between documented and live behaviour is a recurring finding in this
+project, surfaced by actually running the live path rather than trusting the docs. L1 correctly flags the reason as unmapped and falls back
 honestly rather than guessing specifically; L2b prices asking for a new instrument above a
 blind retry once the lapse and churn terms are in; L2a passes it through clean; L3 then
 creates `plink_TWmzYg3YvKaVgY` — an actual Razorpay payment link, not a mock object.

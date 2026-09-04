@@ -7,8 +7,8 @@ model is asserted here against the recorded classifications, so a change that
 moves a figure fails a test rather than quietly making a document wrong.
 
 PROVENANCE. The classifications in `sim/data/l1_classifications_seed42.json`
-were produced by Claude reading only the fields a real L1 receives, in four
-separate fresh contexts that had never seen `sim/generate_batch.py` or the
+were produced by a large language model reading only the fields a real L1
+receives, in four separate fresh contexts that had never seen `sim/generate_batch.py` or the
 ground truth. That isolation is what makes these numbers mean anything —
 whoever writes the batch generator knows the answer key, so a classification
 produced by that same context would be contaminated. It is not a live API run

@@ -181,8 +181,8 @@ better (83% against 78%) while ordering its own recovery estimate worse at the t
 in the same batch, and neither figure is averaged away to hide the other.
 
 > **Provenance, because it changes how much these numbers are worth.** The classifications in
-> `sim/data/l1_classifications_seed42.json` were produced by Claude reading only the fields a real
-> L1 receives, given `SYSTEM_PROMPT` verbatim, across four separate fresh contexts that had never
+> `sim/data/l1_classifications_seed42.json` were produced by a large language model reading only
+> the fields a real L1 receives, given `SYSTEM_PROMPT` verbatim, across four separate fresh contexts that had never
 > seen `sim/generate_batch.py` or the ground truth. That isolation is deliberate: whoever writes the
 > batch generator knows the answer key, so a classification produced by that same context would be
 > contaminated and the accuracy figures would mean nothing.

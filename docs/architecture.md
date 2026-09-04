@@ -167,16 +167,15 @@ conversion happens and why the trace renderer prints both zones.
 `executor.py` (L3: `Executor` protocol, `FakeExecutor`, `RazorpayExecutor`) — live-verified against a
 real Razorpay test-mode account, including one full real end-to-end trace
 (`sim/demo_live_trace.py`): a genuine declined payment, classified, priced, gated, and followed by a
-genuine payment link created in response. See `docs/HANDOFF.md` §5.2 and `docs/build-log.md`'s
-1 September evening entry for two places the live API's actual behaviour did not match its
-documentation, and `audit.py` (append-only writer, `AuditLog`, no update/delete method - checked
-structurally by `tests/test_audit.py`), and `api.py` + `static/` (a live decision console -
-FastAPI backend, plain HTML/CSS/vanilla-JS frontend, no framework or build step - new scope
-requested directly by the project owner on 2 September, not part of the original L1-L3/audit list;
-see `docs/HANDOFF.md` §10) — including the audit trail: every console decision and the real
-demo trace now write through `AuditLog` and read it back, so `audit.py` has a real caller.
+genuine payment link created in response — two places the live API's actual behaviour did not
+match its documentation surfaced this way, not by reading the docs — and `audit.py` (append-only
+writer, `AuditLog`, no update/delete method - checked structurally by `tests/test_audit.py`), and
+`api.py` + `static/` (a live decision console - FastAPI backend, plain HTML/CSS/vanilla-JS
+frontend, no framework or build step) — including the audit trail: every console decision and the
+real demo trace now write through `AuditLog` and read it back, so `audit.py` has a real caller.
 304 tests, of which the 149 on L2a are unmodified.
 
 **Not built:** nothing on the original L1/L2/L3/audit list. `audit.py` is not yet wired into
-`sim/run_arms.py`, which stays a pure in-memory harness with no DB by design - see §5.3 of
-`docs/HANDOFF.md`.
+`sim/run_arms.py`, which stays a pure in-memory harness with no DB by design — the simulator runs
+thousands of fast, disposable trials across arms and seeds, and a persistence layer would be
+adding a DB to a component whose entire point is not having one.
